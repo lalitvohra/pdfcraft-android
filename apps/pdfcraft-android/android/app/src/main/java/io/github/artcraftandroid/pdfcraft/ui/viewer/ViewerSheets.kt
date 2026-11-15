@@ -410,7 +410,7 @@ private fun parentOf(all: List<OutlineEntry>, i: Int): Int {
 
 @Composable
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
-private fun UserBookmarkRow(name: String, page: Int, renaming: Boolean, onOpen: () -> Unit, onRename: () -> Unit, onRenamed: (String) -> Unit, onDelete: () -> Unit, onDeleteAll: () -> Unit) {
+internal fun UserBookmarkRow(name: String, page: Int, renaming: Boolean, onOpen: () -> Unit, onRename: () -> Unit, onRenamed: (String) -> Unit, onDelete: () -> Unit, onDeleteAll: () -> Unit) {
     val c = pdfColors
     var menu by remember { mutableStateOf(false) }
     var text by remember(renaming) { mutableStateOf(name) }

@@ -200,6 +200,11 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
         ),
     ) {
         val gesturesForTool = ctl.tool == ViewerTool.None || ctl.tool == ViewerTool.Edit
+        // The pages and the side panel share the width. The panel docks to the
+        // end edge; the pages take what is left of it. The bars are drawn
+        // outside this row, so they keep the whole width.
+        Row(Modifier.fillMaxSize()) {
+        Box(Modifier.weight(1f).fillMaxHeight()) {
         if (vm.readingMode) ReadingModeContent(
             vm, doc,
             // the text stays put when the bars hide, as the pages do

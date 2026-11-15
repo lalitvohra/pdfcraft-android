@@ -92,6 +92,13 @@ fun ViewerTopBar(
     onShare: () -> Unit,
     onMore: () -> Unit,
     moreOpen: Boolean,
+    /**
+     * Opens or closes the Bookmarks & Table of Contents side panel. Null when
+     * the panel is not available (a tool is up).
+     */
+    onTogglePanel: (() -> Unit)? = null,
+    /** Whether the side panel is open, so its button can show as pressed. */
+    panelOpen: Boolean = false,
     /** A tool with its own title (Edit PDF): Done, the title and Undo only. */
     title: String? = null,
     /** What Undo and Redo would take back or bring back, for their menu. */
@@ -141,6 +148,14 @@ fun ViewerTopBar(
             UndoMenuButton(canUndo, canRedo, onUndo, onRedo, undoLabel, redoLabel)
         }
         if (onSearch != null) BarIcon(LucideIcons.Search, stringResource(R.string.viewer_find_in_document), onSearch)
+        if (onTogglePanel != null) {
+            BarIcon(
+                LucideIcons.PanelLeft,
+                stringResource(R.string.viewer_side_panel),
+                onTogglePanel,
+                selected = panelOpen,
+            )
+        }
         BarIcon(LucideIcons.Share2, stringResource(R.string.common_share), onShare)
         BarIcon(LucideIcons.EllipsisVertical, stringResource(R.string.common_more_options), onMore, selected = moreOpen)
         Spacer(Modifier.width(10.dp))

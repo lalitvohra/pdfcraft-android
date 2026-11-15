@@ -30,6 +30,7 @@ import org.json.JSONObject
 import android.app.Application
 import android.net.Uri
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
@@ -63,6 +64,12 @@ private const val MAX_SCRIPT_ALERTS = 20
 
 /** The saved-state key of the scan in progress. */
 private const val SCAN_STATE = "scan"
+
+/** The saved key of the Bookmarks & Table of Contents side panel's open state. */
+private const val KEY_SIDE_PANEL_OPEN = "sidePanelOpen"
+
+/** The saved key of the side panel's width, as a fraction of the screen's width. */
+private const val KEY_SIDE_PANEL_WIDTH = "sidePanelWidth"
 
 /**
  * The app's state: the engine, the open document, Home's lists, and the messages. [saved] keeps
@@ -762,6 +769,38 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
     val quickToolbar = io.github.artcraftandroid.pdfcraft.ui.viewer.QuickToolbarPrefs(app)
     private val appPrefs = app.getSharedPreferences("app", android.content.Context.MODE_PRIVATE)
     private val bookmarkStore = UserBookmarks(File(app.filesDir, "bookmarks.json"))
+
+    // ---- The Bookmarks & Table of Contents side panel ---------------------------------------
+
+    /**
+     * Whether the side panel is open. Remembered between sessions, so the
+     * reader finds the panel as they left it.
+     */
+    var sidePanelOpen by mutableStateOf(appPrefs.getBoolean(KEY_SIDE_PANEL_OPEN, false))
+        private set
+
+    fun setSidePanelOpen(open: Boolean) {
+        if (sidePanelOpen == open) return
+        sidePanelOpen = open
+        appPrefs.edit().putBoolean(KEY_SIDE_PANEL_OPEN, open).apply()
+    }
+
+    /**
+     * The side panel's width, as a fraction of the screen's width. The reader
+     * can drag the panel's edge to resize it; the width is kept between
+     * sessions.
+     */
+    var sidePanelWidthFraction by mutableFloatStateOf(
+        appPrefs.getFloat(KEY_SIDE_PANEL_WIDTH, 0.32f).coerceIn(0.2f, 0.6f),
+    )
+        private set
+
+    fun setSidePanelWidthFraction(fraction: Float) {
+        val clamped = fraction.coerceIn(0.2f, 0.6f)
+        if (sidePanelWidthFraction == clamped) return
+        sidePanelWidthFraction = clamped
+        appPrefs.edit().putFloat(KEY_SIDE_PANEL_WIDTH, clamped).apply()
+    }
 
     /** The Search tab's last searches, newest first (kept on the phone, as the reference keeps them). */
     var recentSearches by mutableStateOf(appPrefs.getString("recentSearches", null)?.split('\n')?.filter { it.isNotBlank() } ?: emptyList())

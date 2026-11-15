@@ -54,6 +54,16 @@ class ViewerController {
 
     var sheet by mutableStateOf(ViewerSheet.None)
 
+    /**
+     * Whether the Bookmarks & Table of Contents side panel is open beside the pages.
+     *
+     * The panel is the sheet's content kept on screen, so a reader can jump
+     * around a long document without dismissing it first. Its open state and
+     * width are remembered between sessions (see [AppViewModel.sidePanelOpen]
+     * and [AppViewModel.sidePanelWidthFraction]).
+     */
+    var sidePanelOpen by mutableStateOf(false)
+
     /** Draw's Eraser is chosen instead of the pen (#57). */
     var drawEraser by mutableStateOf(false)
 
