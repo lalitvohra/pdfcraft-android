@@ -201,6 +201,7 @@ private fun ReorderableTabChip(
     ) {
         Row(
             Modifier
+                .widthIn(min = 60.dp, max = 230.dp)
                 .clip(RoundedCornerShape(8.dp))
                 .background(if (selected) c.pressed else Color.Transparent)
                 .clickable { onClick() }
@@ -217,8 +218,9 @@ private fun ReorderableTabChip(
                 overflow = TextOverflow.Ellipsis,
                 // The title takes the room it needs, up to a limit, so a
                 // short name is a short tab and a long one still shows most
-                // of its name.
-                modifier = Modifier.widthIn(min = 60.dp, max = 220.dp),
+                // of its name. The weight is what bounds it: without it the
+                // row would take the whole width the list gives it.
+                modifier = Modifier.weight(1f, fill = false),
             )
             IconButton(onClick = onClose, modifier = Modifier.size(30.dp)) {
                 Icon(

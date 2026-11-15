@@ -288,20 +288,8 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument, tabsAbove: Boolean = false
         }
         if (ctl.tool == ViewerTool.FillSign) vm.selectedFill?.let { FillElementMenu(vm, doc, it) }
 
-        // The page number navigator, and the scrubber on the edge for the
-        // older gesture: the navigator is a floating panel the reader asks
-        // for, and can be dragged anywhere on the page.
+        // The scrubber on the edge, for the older gesture.
         Box(Modifier.fillMaxSize().then(cutoutSides)) {
-            if (!vm.readingMode) {
-                PageNumberNavigator(
-                    doc = doc,
-                    visible = ctl.navigatorOpen && ctl.tool == ViewerTool.None && !ctl.searching,
-                    onDrag = { ctl.lastMoved = SystemClock.uptimeMillis() },
-                    onTap = { ctl.goToPage = true },
-                    onClose = { ctl.navigatorOpen = false },
-                )
-            }
-
             if (vm.readingMode) {
                 Unit
             } else if (doc.pageCount >= 3 && doc.viewer.mode == PageMode.SinglePage) {
@@ -475,6 +463,21 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument, tabsAbove: Boolean = false
             // the navigation bar's band stays solid while the bars show (also while searching)
             if (ctl.barsVisible) Box(Modifier.fillMaxWidth().windowInsetsBottomHeight(WindowInsets.navigationBars).background(c.navBand))
         }
+        }
+
+        // The page number navigator. It is drawn after the bars, so it is
+        // over them: it floats over the page and the reader can drag it
+        // where they want it.
+        if (!vm.readingMode) {
+            Box(Modifier.fillMaxSize().then(cutoutSides)) {
+                PageNumberNavigator(
+                    doc = doc,
+                    visible = ctl.navigatorOpen && ctl.tool == ViewerTool.None && !ctl.searching,
+                    onDrag = { ctl.lastMoved = SystemClock.uptimeMillis() },
+                    onTap = { ctl.goToPage = true },
+                    onClose = { ctl.navigatorOpen = false },
+                )
+            }
         }
 
         // The Bookmarks & Table of Contents side panel, docked to the end

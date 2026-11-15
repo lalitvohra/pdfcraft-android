@@ -107,7 +107,7 @@ fun AppRoot(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: () -> 
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         if (fullWidthViewer && doc != null) {
-            Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal))) { ViewerScreen(vm, doc) }
+            Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal))) { ViewerScreen(vm, doc, tabsAbove = tabsShowing && fullWidthViewer) }
         }
         Box(
             Modifier.fillMaxSize()
@@ -115,11 +115,12 @@ fun AppRoot(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: () -> 
                 .then(if (fullWidthViewer) Modifier else Modifier.background(c.surface)),
         ) {
             Column(Modifier.fillMaxSize()) {
-            // The tab strip of the open documents. It is shown as soon as a
-            // document is open: its + button is how the reader opens another
-            // one beside it. In the full-width viewer it is drawn over the
-            // page, at the top, so it is there either way.
-            if (tabsShowing) {
+            // The tab strip of the open documents. It is a bar of its own,
+            // above the viewer, so the viewer has the rest of the screen for
+            // the page. With the status bar in documents the viewer is laid
+            // out full width under it, and the strip is drawn over the page
+            // instead (below).
+            if (tabsShowing && !fullWidthViewer) {
                 io.github.artcraftandroid.pdfcraft.ui.viewer.OpenDocumentTabs(
                     vm = vm,
                     documents = vm.openDocuments,
@@ -133,10 +134,24 @@ fun AppRoot(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: () -> 
             Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
                 fullWidthViewer -> Unit
-                doc != null -> ViewerScreen(vm, doc, tabsAbove = tabsShowing)
+                doc != null -> ViewerScreen(vm, doc, tabsAbove = tabsShowing && fullWidthViewer)
                 else -> HomeRoot(vm, onBrowse)
             }
             }
+            }
+            // In the full-width viewer the strip is drawn over the page, so
+            // it is there either way.
+            if (tabsShowing && fullWidthViewer) {
+                io.github.artcraftandroid.pdfcraft.ui.viewer.OpenDocumentTabs(
+                    vm = vm,
+                    documents = vm.openDocuments,
+                    current = doc,
+                    onSelect = { vm.selectDocument(it) },
+                    onClose = { vm.closeDocumentAt(it) },
+                    onReorder = { from, to -> vm.reorderDocument(from, to) },
+                    onNewTab = { vm.openDocumentSheet = true },
+                    modifier = Modifier.align(Alignment.TopCenter),
+                )
             }
             // here rather than in the file's row: a sheet inside a scrolling list has no height to fill
             if (doc == null) vm.fileSheet?.let { (r, recent) -> io.github.artcraftandroid.pdfcraft.ui.home.FileSheet(vm, r, recent) { vm.fileSheet = null } }
