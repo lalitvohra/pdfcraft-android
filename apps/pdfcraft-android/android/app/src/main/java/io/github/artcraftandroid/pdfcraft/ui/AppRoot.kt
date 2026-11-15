@@ -110,10 +110,26 @@ fun AppRoot(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: () -> 
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
                 .then(if (fullWidthViewer) Modifier else Modifier.background(c.surface)),
         ) {
+            Column(Modifier.fillMaxSize()) {
+            // The tab strip of the open documents, when there is more than one.
+            if (doc != null && vm.openDocuments.size > 1) {
+                io.github.artcraftandroid.pdfcraft.ui.viewer.OpenDocumentTabs(
+                    vm = vm,
+                    documents = vm.openDocuments,
+                    current = doc,
+                    onSelect = { vm.selectDocument(it) },
+                    onClose = { vm.closeDocumentAt(it) },
+                    onReorder = { from, to -> vm.reorderDocument(from, to) },
+                    onNewTab = { onBrowse() },
+                )
+            }
+            Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
                 fullWidthViewer -> Unit
                 doc != null -> ViewerScreen(vm, doc)
                 else -> HomeRoot(vm, onBrowse)
+            }
+            }
             }
             // here rather than in the file's row: a sheet inside a scrolling list has no height to fill
             if (doc == null) vm.fileSheet?.let { (r, recent) -> io.github.artcraftandroid.pdfcraft.ui.home.FileSheet(vm, r, recent) { vm.fileSheet = null } }

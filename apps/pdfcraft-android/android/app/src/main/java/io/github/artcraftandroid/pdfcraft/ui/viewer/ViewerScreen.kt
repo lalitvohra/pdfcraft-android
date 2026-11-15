@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.height
@@ -187,6 +188,15 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
             ctl.searching -> closeSearch(doc)
             else -> vm.leaveTool(doc)
         }
+    }
+
+    // The side panel's open state is remembered between sessions, so the
+    // reader finds it as they left it.
+    LaunchedEffect(doc) {
+        ctl.sidePanelOpen = vm.sidePanelOpen
+    }
+    LaunchedEffect(ctl.sidePanelOpen) {
+        vm.saveSidePanelOpen(ctl.sidePanelOpen)
     }
 
     // a magnifier over the text while a selection handle is dragged, as the reference shows one
@@ -396,6 +406,11 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
                             onShare = { vm.share(doc) },
                             onMore = { ctl.sheet = if (ctl.sheet == ViewerSheet.More) ViewerSheet.None else ViewerSheet.More },
                             moreOpen = ctl.sheet == ViewerSheet.More,
+                            // the side panel: open or close it, keeping it as it was left
+                            onTogglePanel = if (ctl.tool != ViewerTool.None || vm.readingMode) null else ({
+                                ctl.sidePanelOpen = !ctl.sidePanelOpen
+                            }),
+                            panelOpen = ctl.sidePanelOpen,
                             title = if (ctl.tool == ViewerTool.Edit) stringResource(R.string.common_tool_edit_pdf) else null,
                             undoLabel = if (doc.localUndo != null) stringResource(R.string.viewer_undo_drawing) else doc.info.undo,
                             redoLabel = if (doc.localUndo != null) stringResource(R.string.viewer_undo_drawing) else doc.info.redo,
@@ -436,7 +451,19 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
             // the navigation bar's band stays solid while the bars show (also while searching)
             if (ctl.barsVisible) Box(Modifier.fillMaxWidth().windowInsetsBottomHeight(WindowInsets.navigationBars).background(c.navBand))
         }
+        }
 
+        // The Bookmarks & Table of Contents side panel, docked to the end
+        // edge beside the pages.
+        if (ctl.sidePanelOpen && !vm.readingMode) {
+            SidePanelHost(
+                vm = vm,
+                doc = doc,
+                onClose = { ctl.sidePanelOpen = false },
+                modifier = Modifier.width((config.screenWidthDp * vm.sidePanelWidthFraction).dp),
+            )
+        }
+        }
         // The active tool's sheets, over everything.
         ToolSheets(vm, doc)
 

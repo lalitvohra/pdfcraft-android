@@ -89,6 +89,82 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
     var document by mutableStateOf<OpenDocument?>(null)
         private set
 
+    /**
+     * The open documents, in the order they were opened. The reader can keep
+     * several open at once and switch between them from the tab strip; the
+     * one in [document] is the one on screen.
+     *
+     * The engine keeps every open document (each with its own id), so a
+     * document that is not on screen stays open and keeps its place.
+     */
+    var openDocuments by mutableStateOf<List<OpenDocument>>(emptyList())
+        private set
+
+    /** The tab strip: the open documents' titles, for the reader to pick from. */
+    val openDocumentTitles: List<String>
+        get() = openDocuments.map { it.title }
+
+    /**
+     * Switch to the open document at [index], keeping the others open.
+     *
+     * The document left behind is saved, as the reference does when it moves
+     * on to another one, and the one shown reopens where the reader left it.
+     */
+    fun selectDocument(index: Int) {
+        val docs = openDocuments
+        if (index < 0 || index >= docs.size) return
+        val target = docs[index]
+        if (target === document) return
+        val previous = document
+        document = target
+        // the spot and the page of the document now shown
+        pendingPage = null
+        pendingSpot = null
+        if (previous != null) {
+            viewModelScope.launch { save(previous) }
+        }
+    }
+
+    /**
+     * Move the open document at [from] to [to], keeping the same document on
+     * screen. The reader reorders the tabs by dragging them.
+     */
+    fun reorderDocument(from: Int, to: Int) {
+        val docs = openDocuments.toMutableList()
+        if (from < 0 || from >= docs.size || to < 0 || to >= docs.size || from == to) return
+        val doc = docs.removeAt(from)
+        docs.add(to, doc)
+        openDocuments = docs
+    }
+
+/** Close the open document at [index], saving it first. */
+    fun closeDocumentAt(index: Int) {
+        val docs = openDocuments
+        if (index < 0 || index >= docs.size) return
+        val doc = docs[index]
+        val eng = engine ?: return
+        viewModelScope.launch {
+            if (doc.controller.tool != ViewerTool.None) leaveTool(doc)
+            save(doc)
+            val remaining = docs.toMutableList().also { it.removeAt(index) }
+            openDocuments = remaining
+            if (document === doc) {
+                // the closed document was on screen: show the one beside it,
+                // or go back to Home when it was the last
+                document = remaining.getOrNull(index.coerceAtMost(remaining.size - 1))
+                if (document == null) {
+                    closeQuietly(eng, doc)
+                    readingMode = false
+                    refreshRecents()
+                    if (doc.fromOtherApp) leave.trySend(Unit)
+                    return@launch
+                }
+            }
+            closeQuietly(eng, doc)
+            refreshRecents()
+        }
+    }
+
     var recentList by mutableStateOf<List<RecentFile>>(emptyList())
         private set
 
@@ -225,7 +301,12 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
 
     private suspend fun openFile(eng: Engine, uri: Uri, file: File, password: String?) {
         try {
-            document?.let { saveAndClose(eng, it) }
+            // A document that is already open is shown again rather than
+            // opened twice.
+            openDocuments.firstOrNull { it.source == uri.takeIf { s -> s.scheme == "content" || s.scheme == "file" } }?.let {
+                document = it
+                return
+            }
             val info = eng.command { open(file.absolutePath, password) }
             val images = PageImages(eng, info.id, viewModelScope, imageBudget)
             val source = uri.takeIf { it.scheme == "content" || it.scheme == "file" }
@@ -241,6 +322,9 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
             // a file left in Reading Mode reopens in it, unless it was opened for a tool
             readingMode = recent?.reading == true && pendingTool == null
             document = doc
+            // the document joins the open ones, so the reader can keep it and
+            // open another beside it
+            openDocuments = openDocuments + doc
             if (doc.info.signed) announceSignatures(doc)
             startPendingTool(doc)
             pendingPage = recent?.lastPage?.takeIf { it in 0 until info.pages.size }
@@ -285,11 +369,17 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
                 readOnlyPrompt = doc
                 return@launch
             }
-            document = null
+            // the document leaves the open ones; the others stay open
+            val index = openDocuments.indexOfFirst { it === doc }
+            val remaining = openDocuments.filterNot { it === doc }
+            openDocuments = remaining
+            document = remaining.getOrNull(index.coerceAtMost(remaining.size - 1))
             saveAndClose(eng, doc)
-            readingMode = false
-            refreshRecents()
-            if (doc.fromOtherApp) leave.trySend(Unit)
+            if (document == null) {
+                readingMode = false
+                refreshRecents()
+                if (doc.fromOtherApp) leave.trySend(Unit)
+            }
         }
     }
 
@@ -779,7 +869,7 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
     var sidePanelOpen by mutableStateOf(appPrefs.getBoolean(KEY_SIDE_PANEL_OPEN, false))
         private set
 
-    fun setSidePanelOpen(open: Boolean) {
+    fun saveSidePanelOpen(open: Boolean) {
         if (sidePanelOpen == open) return
         sidePanelOpen = open
         appPrefs.edit().putBoolean(KEY_SIDE_PANEL_OPEN, open).apply()
@@ -795,7 +885,7 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
     )
         private set
 
-    fun setSidePanelWidthFraction(fraction: Float) {
+    fun saveSidePanelWidthFraction(fraction: Float) {
         val clamped = fraction.coerceIn(0.2f, 0.6f)
         if (sidePanelWidthFraction == clamped) return
         sidePanelWidthFraction = clamped

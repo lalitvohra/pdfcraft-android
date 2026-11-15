@@ -42,11 +42,12 @@ fun SidePanelHost(
 ) {
     val c = pdfColors
     val density = LocalDensity.current
+    val screenWidthDp = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
 
     BoxWithConstraints(modifier.fillMaxHeight().background(c.surface)) {
         // The panel's own width, and the screen's, so a drag can be measured.
         val panelWidthPx = with(density) { maxWidth.toPx() }
-        val screenWidthPx = with(density) { constraints.maxWidth.toPx() }.coerceAtLeast(1f)
+        val screenWidthPx = with(density) { screenWidthDp.dp.toPx() }.coerceAtLeast(1f)
 
         // While the panel is dragged its width follows the finger; the saved
         // width follows when the drag ends.
@@ -73,7 +74,7 @@ fun SidePanelHost(
                     .pointerInput(Unit) {
                         detectHorizontalDragGestures(
                             onDragEnd = {
-                                if (dragFraction >= 0f) vm.setSidePanelWidthFraction(dragFraction)
+                                if (dragFraction >= 0f) vm.saveSidePanelWidthFraction(dragFraction)
                                 dragFraction = -1f
                             },
                             onDragCancel = { dragFraction = -1f },

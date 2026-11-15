@@ -400,14 +400,6 @@ fun BookmarksSheet(vm: AppViewModel, doc: OpenDocument) {
     }
 }
 
-private fun parentOf(all: List<OutlineEntry>, i: Int): Int {
-    val level = all[i].level
-    if (level == 0u) return -1
-    var k = i - 1
-    while (k >= 0 && all[k].level >= level) k--
-    return k
-}
-
 @Composable
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 internal fun UserBookmarkRow(name: String, page: Int, renaming: Boolean, onOpen: () -> Unit, onRename: () -> Unit, onRenamed: (String) -> Unit, onDelete: () -> Unit, onDeleteAll: () -> Unit) {

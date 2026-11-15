@@ -36,8 +36,10 @@ import io.github.artcraftandroid.pdfcraft.R
 import io.github.artcraftandroid.pdfcraft.core.OutlineEntry
 import io.github.artcraftandroid.pdfcraft.text
 import io.github.artcraftandroid.pdfcraft.ui.AppViewModel
+import io.github.artcraftandroid.pdfcraft.ui.BarIcon
 import io.github.artcraftandroid.pdfcraft.ui.LucideIcons
 import io.github.artcraftandroid.pdfcraft.ui.OpenDocument
+import io.github.artcraftandroid.pdfcraft.ui.SheetDivider
 import io.github.artcraftandroid.pdfcraft.ui.pdfColors
 
 /**
