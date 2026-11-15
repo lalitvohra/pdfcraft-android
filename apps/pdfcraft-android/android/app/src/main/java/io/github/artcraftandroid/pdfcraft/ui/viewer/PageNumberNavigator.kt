@@ -9,15 +9,18 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -65,13 +68,12 @@ import kotlin.math.roundToInt
  * on it hides the panel.
  */
 @Composable
-fun PageNumberNavigator(
+fun BoxScope.PageNumberNavigator(
     doc: OpenDocument,
     visible: Boolean,
     onDrag: () -> Unit,
     onTap: () -> Unit,
     onClose: () -> Unit,
-    modifier: Modifier = Modifier,
 ) {
     val c = pdfColors
     val v = doc.viewer
@@ -92,20 +94,22 @@ fun PageNumberNavigator(
     val pageHeightPx = with(density) { (v.viewH / v.zoom).coerceAtLeast(1f) }
 
     val described = stringResource(R.string.viewer_page_of, v.currentPage + 1, doc.pageCount)
+    if (!visible) return
 
-    AnimatedVisibility(
-        visible = visible,
-        enter = fadeIn(tween(150)),
-        exit = fadeOut(tween(200)),
+    // How far the panel may be dragged: up, towards the tab strip, and down.
+    val maxUp = with(density) { 200.dp.toPx() }
+    val maxDown = with(density) { 120.dp.toPx() }
+
+    // The panel is anchored at the bottom-end corner of the page. The
+    // alignment is set here rather than passed in, because a Modifier that
+    // carried it would lose its scope on the way here.
+    Box(
+        Modifier.matchParentSize(),
+        contentAlignment = Alignment.BottomEnd,
     ) {
-        // The panel is anchored at the bottom-end corner, so a negative
-        // offset moves it up and a positive one down. It stays inside the
-        // page: it never goes over the tab strip above it, nor off the
-        // bottom.
-        val maxUp = with(density) { 200.dp.toPx() }
-        val maxDown = with(density) { 120.dp.toPx() }
         Column(
-            modifier
+            Modifier
+                .padding(end = 16.dp, bottom = 120.dp)
                 .offset {
                     IntOffset(
                         offsetX.roundToInt().coerceIn(-maxUp.roundToInt(), 0),
@@ -119,7 +123,7 @@ fun PageNumberNavigator(
             // ---- The title bar: the drag handle, and the page number ----
             Row(
                 Modifier
-                    .fillMaxWidth()
+                    .widthIn(min = 150.dp, max = 260.dp)
                     .background(if (scrubbing) c.accent else c.pressed)
                     .pointerInput(doc) {
                         detectTapGestures(onTap = { onTap() })
@@ -213,7 +217,7 @@ fun PageNumberNavigator(
             ) {
                 Box(
                     Modifier
-                        .fillMaxWidth()
+                        .widthIn(min = 150.dp, max = 260.dp)
                         .height(40.dp)
                         .background(c.surfaceRaised),
                     contentAlignment = Alignment.Center,

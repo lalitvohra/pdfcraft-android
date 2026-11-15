@@ -83,7 +83,7 @@ import kotlinx.coroutines.launch
  * selection, the active tool's layer and sub-toolbar, and the sheets.
  */
 @Composable
-fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
+fun ViewerScreen(vm: AppViewModel, doc: OpenDocument, tabsAbove: Boolean = false) {
     val c = pdfColors
     val ctl = doc.controller
     val scope = rememberCoroutineScope()
@@ -299,9 +299,6 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
                     onDrag = { ctl.lastMoved = SystemClock.uptimeMillis() },
                     onTap = { ctl.goToPage = true },
                     onClose = { ctl.navigatorOpen = false },
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(end = 16.dp, bottom = 120.dp),
                 )
             }
 
@@ -366,10 +363,16 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
 
         // The bars.
         Column(Modifier.fillMaxWidth().align(Alignment.TopCenter)) {
-            Box(
-                Modifier.fillMaxWidth().height(with(density) { statusPx.toDp() })
-                    .background(if (!statusBar) Color.Black else if (ctl.barsVisible) c.surface else Color.Transparent),
-            )
+            // The status bar's band: black when the status bar in documents
+            // is off, as the reference has it. With the tab strip above the
+            // viewer the band is not there any more, and painting it would
+            // put a black bar between the strip and the viewer's bar.
+            if (!tabsAbove) {
+                Box(
+                    Modifier.fillMaxWidth().height(with(density) { statusPx.toDp() })
+                        .background(if (!statusBar) Color.Black else if (ctl.barsVisible) c.surface else Color.Transparent),
+                )
+            }
             AnimatedVisibility(
                 ctl.barsVisible,
                 enter = slideInVertically(tween(PdfMotion.BARS_MS)) { -it } + fadeIn(tween(PdfMotion.BARS_MS)),

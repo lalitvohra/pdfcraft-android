@@ -101,6 +101,10 @@ fun AppRoot(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: () -> 
     // page goes under the camera too, as it does upright (#45): the viewer is laid out full width
     // and keeps its bars clear of the camera itself.
     val fullWidthViewer = doc != null && vm.statusBarInDocuments
+    // The tab strip of the open documents is shown as soon as a document is
+    // open: its + button is how the reader opens another one beside it.
+    val tabsShowing = doc != null && vm.openDocuments.isNotEmpty()
+
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         if (fullWidthViewer && doc != null) {
             Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal))) { ViewerScreen(vm, doc) }
@@ -115,7 +119,7 @@ fun AppRoot(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: () -> 
             // document is open: its + button is how the reader opens another
             // one beside it. In the full-width viewer it is drawn over the
             // page, at the top, so it is there either way.
-            if (doc != null && vm.openDocuments.isNotEmpty()) {
+            if (tabsShowing) {
                 io.github.artcraftandroid.pdfcraft.ui.viewer.OpenDocumentTabs(
                     vm = vm,
                     documents = vm.openDocuments,
@@ -129,7 +133,7 @@ fun AppRoot(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: () -> 
             Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
                 fullWidthViewer -> Unit
-                doc != null -> ViewerScreen(vm, doc)
+                doc != null -> ViewerScreen(vm, doc, tabsAbove = tabsShowing)
                 else -> HomeRoot(vm, onBrowse)
             }
             }
