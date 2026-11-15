@@ -27,6 +27,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -175,6 +176,16 @@ fun BookmarksPanelContent(
                                     maxLines = 3,
                                     overflow = TextOverflow.Ellipsis,
                                 )
+                                // the page it goes to, so the reader can see
+                                // where it is without opening it
+                                e.page?.let { p ->
+                                    Text(
+                                        stringResource(R.string.sheet_page, p.toInt() + 1),
+                                        color = c.textSecondary,
+                                        fontSize = 13.sp,
+                                        modifier = Modifier.padding(start = 8.dp),
+                                    )
+                                }
                                 if (e.children > 0u) {
                                     BarIcon(
                                         LucideIcons.ChevronRight,

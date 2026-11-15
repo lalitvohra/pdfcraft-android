@@ -99,6 +99,13 @@ fun ViewerTopBar(
     onTogglePanel: (() -> Unit)? = null,
     /** Whether the side panel is open, so its button can show as pressed. */
     panelOpen: Boolean = false,
+    /**
+     * Shows or hides the page number navigator. Null when it is not
+     * available (a tool is up).
+     */
+    onToggleNavigator: (() -> Unit)? = null,
+    /** Whether the page number navigator is showing, so its button can show as pressed. */
+    navigatorOpen: Boolean = false,
     /** A tool with its own title (Edit PDF): Done, the title and Undo only. */
     title: String? = null,
     /** What Undo and Redo would take back or bring back, for their menu. */
@@ -154,6 +161,14 @@ fun ViewerTopBar(
                 stringResource(R.string.viewer_side_panel),
                 onTogglePanel,
                 selected = panelOpen,
+            )
+        }
+        if (onToggleNavigator != null) {
+            BarIcon(
+                LucideIcons.GripVertical,
+                stringResource(R.string.viewer_page_navigator),
+                onToggleNavigator,
+                selected = navigatorOpen,
             )
         }
         BarIcon(LucideIcons.Share2, stringResource(R.string.common_share), onShare)

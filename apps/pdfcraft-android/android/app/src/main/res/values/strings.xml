@@ -413,6 +413,8 @@
     <string name="viewer_redo_named">Redo %1$s</string>
     <string name="viewer_find_in_document">Find in document</string>
     <string name="viewer_side_panel">Bookmarks and contents panel</string>
+    <string name="viewer_page_navigator">Page number navigator</string>
+    <string name="viewer_hide_page_navigator">Hide the page number navigator</string>
     <string name="viewer_new_tab">Open another document</string>
 
     <!-- Viewer: Find in the top bar -->

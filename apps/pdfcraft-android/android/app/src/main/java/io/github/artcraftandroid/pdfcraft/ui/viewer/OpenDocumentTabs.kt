@@ -68,7 +68,7 @@ fun OpenDocumentTabs(
     modifier: Modifier = Modifier,
 ) {
     val c = pdfColors
-    if (documents.size < 2) return
+    if (documents.isEmpty()) return
 
     val listState = rememberLazyListState()
     val selectedIndex = documents.indexOfFirst { it === current }

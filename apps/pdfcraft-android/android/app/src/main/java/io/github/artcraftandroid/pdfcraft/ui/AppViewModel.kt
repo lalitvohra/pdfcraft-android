@@ -302,8 +302,11 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
     private suspend fun openFile(eng: Engine, uri: Uri, file: File, password: String?) {
         try {
             // A document that is already open is shown again rather than
-            // opened twice.
-            openDocuments.firstOrNull { it.source == uri.takeIf { s -> s.scheme == "content" || s.scheme == "file" } }?.let {
+            // opened twice. The working copy's path is what tells them apart:
+            // it is unique for every document, while the URI may be missing
+            // (a document opened from another app's own copy) and so would
+            // make every such document look like the same one.
+            openDocuments.firstOrNull { it.file.absolutePath == file.absolutePath }?.let {
                 document = it
                 return
             }

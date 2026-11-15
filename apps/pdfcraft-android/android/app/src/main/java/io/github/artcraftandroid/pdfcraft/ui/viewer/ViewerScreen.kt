@@ -288,8 +288,23 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
         }
         if (ctl.tool == ViewerTool.FillSign) vm.selectedFill?.let { FillElementMenu(vm, doc, it) }
 
-        // Scrubber and page pill (continuous, three pages or more).
+        // The page number navigator, and the scrubber on the edge for the
+        // older gesture: the navigator is a floating panel the reader asks
+        // for, and can be dragged anywhere on the page.
         Box(Modifier.fillMaxSize().then(cutoutSides)) {
+            if (!vm.readingMode) {
+                PageNumberNavigator(
+                    doc = doc,
+                    visible = ctl.navigatorOpen && ctl.tool == ViewerTool.None && !ctl.searching,
+                    onDrag = { ctl.lastMoved = SystemClock.uptimeMillis() },
+                    onTap = { ctl.goToPage = true },
+                    onClose = { ctl.navigatorOpen = false },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 16.dp, bottom = 120.dp),
+                )
+            }
+
             if (vm.readingMode) {
                 Unit
             } else if (doc.pageCount >= 3 && doc.viewer.mode == PageMode.SinglePage) {
@@ -411,6 +426,12 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
                                 ctl.sidePanelOpen = !ctl.sidePanelOpen
                             }),
                             panelOpen = ctl.sidePanelOpen,
+                            // the page number navigator: a floating panel
+                            // that shows the page and can be dragged
+                            onToggleNavigator = if (ctl.tool != ViewerTool.None || vm.readingMode) null else ({
+                                ctl.navigatorOpen = !ctl.navigatorOpen
+                            }),
+                            navigatorOpen = ctl.navigatorOpen,
                             title = if (ctl.tool == ViewerTool.Edit) stringResource(R.string.common_tool_edit_pdf) else null,
                             undoLabel = if (doc.localUndo != null) stringResource(R.string.viewer_undo_drawing) else doc.info.undo,
                             redoLabel = if (doc.localUndo != null) stringResource(R.string.viewer_undo_drawing) else doc.info.redo,

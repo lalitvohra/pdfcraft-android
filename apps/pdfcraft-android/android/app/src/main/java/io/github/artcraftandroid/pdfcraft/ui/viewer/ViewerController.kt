@@ -64,6 +64,13 @@ class ViewerController {
      */
     var sidePanelOpen by mutableStateOf(false)
 
+    /**
+     * The page number navigator: the small floating panel that shows where
+     * the reader is in the document and can be dragged to another page. It is
+     * shown when the reader asks for it from the viewer's bar.
+     */
+    var navigatorOpen by mutableStateOf(false)
+
     /** Draw's Eraser is chosen instead of the pen (#57). */
     var drawEraser by mutableStateOf(false)
 

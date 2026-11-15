@@ -354,6 +354,16 @@ fun BookmarksSheet(vm: AppViewModel, doc: OpenDocument) {
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(e.title, color = c.text, fontSize = 16.sp, modifier = Modifier.weight(1f).padding(vertical = 10.dp), maxLines = 3, overflow = TextOverflow.Ellipsis)
+                                // the page it goes to, so the reader can see
+                                // where it is without opening it
+                                e.page?.let { p ->
+                                    Text(
+                                        stringResource(R.string.sheet_page, p.toInt() + 1),
+                                        color = c.textSecondary,
+                                        fontSize = 13.sp,
+                                        modifier = Modifier.padding(start = 8.dp),
+                                    )
+                                }
                                 if (e.children > 0u) BarIcon(LucideIcons.ChevronRight, stringResource(R.string.sheet_expand_entry, e.title), { parent = i })
                             }
                         }

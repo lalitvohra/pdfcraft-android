@@ -111,8 +111,11 @@ fun AppRoot(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: () -> 
                 .then(if (fullWidthViewer) Modifier else Modifier.background(c.surface)),
         ) {
             Column(Modifier.fillMaxSize()) {
-            // The tab strip of the open documents, when there is more than one.
-            if (doc != null && vm.openDocuments.size > 1) {
+            // The tab strip of the open documents. It is shown as soon as a
+            // document is open: its + button is how the reader opens another
+            // one beside it. In the full-width viewer it is drawn over the
+            // page, at the top, so it is there either way.
+            if (doc != null && vm.openDocuments.isNotEmpty()) {
                 io.github.artcraftandroid.pdfcraft.ui.viewer.OpenDocumentTabs(
                     vm = vm,
                     documents = vm.openDocuments,
