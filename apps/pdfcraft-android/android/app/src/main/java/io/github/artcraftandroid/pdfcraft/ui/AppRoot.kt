@@ -123,7 +123,7 @@ fun AppRoot(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: () -> 
                     onSelect = { vm.selectDocument(it) },
                     onClose = { vm.closeDocumentAt(it) },
                     onReorder = { from, to -> vm.reorderDocument(from, to) },
-                    onNewTab = { onBrowse() },
+                    onNewTab = { vm.openDocumentSheet = true },
                 )
             }
             Box(Modifier.weight(1f).fillMaxWidth()) {
@@ -137,6 +137,11 @@ fun AppRoot(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: () -> 
             // here rather than in the file's row: a sheet inside a scrolling list has no height to fill
             if (doc == null) vm.fileSheet?.let { (r, recent) -> io.github.artcraftandroid.pdfcraft.ui.home.FileSheet(vm, r, recent) { vm.fileSheet = null } }
             vm.toolScreen?.let { ToolScreenHost(vm, it) }
+            // The sheet that opens another document beside the one on screen.
+            // The open documents stay open behind it.
+            if (vm.openDocumentSheet) {
+                io.github.artcraftandroid.pdfcraft.ui.viewer.OpenDocumentSheet(vm, onBrowse) { vm.openDocumentSheet = false }
+            }
             vm.signaturePad?.let { SignaturePadScreen(vm, it, onPickSignatureImage) }
             vm.certSign?.let { CertSignScreen(vm, it) }
             if (vm.idCreate) CreateIdScreen(vm)

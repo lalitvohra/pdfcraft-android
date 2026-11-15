@@ -32,7 +32,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -43,27 +42,27 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.artcraftandroid.pdfcraft.R
+import io.github.artcraftandroid.pdfcraft.text
 import io.github.artcraftandroid.pdfcraft.ui.LucideIcons
 import io.github.artcraftandroid.pdfcraft.ui.OpenDocument
 import io.github.artcraftandroid.pdfcraft.ui.pdfColors
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
  * The page number navigator: a small panel that floats over the viewer and
  * shows where the reader is in the document.
  *
- * It follows the same pattern as the floating annotation bar in our own PDF
- * app: a title bar acts as the drag handle, and the panel is offset from the
- * parent's top-left, so the reader can put it wherever they want it and it
- * stays there.
+ * It follows the same pattern as the floating dial pad in our own PDF app: a
+ * title bar acts as the drag handle, and the panel is offset from the
+ * parent's bottom-end corner, so the reader can put it wherever they want it
+ * and it stays there.
  *
- * The title bar shows the page number and the page count. Dragging the body of
- * the panel moves it; dragging the title bar moves it and, if the reader drags
- * it far enough, scrubs through the document, the way the scrubber on the edge
- * does. A tap on the title opens Go to page.
- *
- * The X on the title bar hides the panel; the reader brings it back from the
- * viewer's menu.
+ * The title bar shows the page number and the page count. Dragging the panel
+ * moves it; dragging it up or down over a page of the document scrubs through
+ * the document, the way the scrubber on the edge does, and the page it has
+ * reached appears below the bar. A tap on the bar opens Go to page, and the X
+ * on it hides the panel.
  */
 @Composable
 fun PageNumberNavigator(
@@ -80,17 +79,15 @@ fun PageNumberNavigator(
 
     if (doc.pageCount < 1) return
 
-    // The drag offset from the parent's top-left, in pixels.
+    // The drag offset from the parent's bottom-end corner, in pixels.
     var offsetX by remember { mutableStateOf(0f) }
     var offsetY by remember { mutableStateOf(0f) }
-
-    // While the title bar is dragged, the page it has reached, and whether
-    // the drag has moved far enough to scrub.
+    // While the panel is dragged, the page it has reached.
     var scrubbing by remember { mutableStateOf(false) }
     var dragPage by remember { mutableIntStateOf(-1) }
     var scrubStart by remember { mutableStateOf(0f) }
 
-    // The height of a page of the document, so a drag of one screen's height
+    // The height of a page of the document, so a drag of one page's height
     // moves one page.
     val pageHeightPx = with(density) { (v.viewH / v.zoom).coerceAtLeast(1f) }
 
@@ -101,10 +98,21 @@ fun PageNumberNavigator(
         enter = fadeIn(tween(150)),
         exit = fadeOut(tween(200)),
     ) {
+        // The panel is anchored at the bottom-end corner, so a negative
+        // offset moves it up and a positive one down. It stays inside the
+        // page: it never goes over the tab strip above it, nor off the
+        // bottom.
+        val maxUp = with(density) { 200.dp.toPx() }
+        val maxDown = with(density) { 120.dp.toPx() }
         Column(
             modifier
-                .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
-                .shadow(6.dp, RoundedCornerShape(12.dp))
+                .offset {
+                    IntOffset(
+                        offsetX.roundToInt().coerceIn(-maxUp.roundToInt(), 0),
+                        offsetY.roundToInt().coerceIn(-maxDown.roundToInt(), 0),
+                    )
+                }
+                .shadow(8.dp, RoundedCornerShape(12.dp))
                 .clip(RoundedCornerShape(12.dp))
                 .background(c.surface),
         ) {
@@ -134,22 +142,18 @@ fun PageNumberNavigator(
                             },
                         ) { change, drag ->
                             change.consume()
-                            // A drag along the panel moves it; a drag across it
-                            // (or a long one) scrubs through the document.
-                            if (!scrubbing && dragPage < 0) {
-                                val along = abs(drag.y) > abs(drag.x)
-                                if (along && abs(drag.y) > 0f) {
-                                    // the drag is vertical: it scrubs
+                            if (!scrubbing) {
+                                // A drag that is mostly vertical scrubs
+                                // through the document; any other drag moves
+                                // the panel.
+                                if (abs(drag.y) > abs(drag.x) && abs(drag.y) > 0f) {
                                     scrubbing = true
                                     scrubStart = v.scrollY
+                                } else {
                                     offsetX += drag.x
                                     offsetY += drag.y
                                     return@detectDragGestures
                                 }
-                                // otherwise the panel follows the finger
-                                offsetX += drag.x
-                                offsetY += drag.y
-                                return@detectDragGestures
                             }
                             if (scrubbing) {
                                 val page = ((scrubStart + drag.y) / pageHeightPx).toInt()
@@ -171,14 +175,21 @@ fun PageNumberNavigator(
                     tint = if (scrubbing) Color.White else c.icon,
                     modifier = Modifier.size(16.dp),
                 )
-                Spacer(Modifier.width(6.dp))
+                Spacer(Modifier.width(4.dp))
                 Text(
-                    "${v.currentPage + 1} / ${doc.pageCount}",
+                    stringResource(R.string.viewer_go_to_page),
                     color = if (scrubbing) Color.White else c.text,
-                    fontSize = 14.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     modifier = Modifier.weight(1f),
+                )
+                // The page it is on, and how many there are.
+                Text(
+                    "${v.currentPage + 1} / ${doc.pageCount}",
+                    color = if (scrubbing) Color.White else c.textSecondary,
+                    fontSize = 12.sp,
+                    maxLines = 1,
                 )
                 Icon(
                     LucideIcons.X,
@@ -192,9 +203,9 @@ fun PageNumberNavigator(
                 )
             }
 
-            // ---- The body: the page the drag has reached ----
-            // A small strip that shows the page under the finger, so the
-            // reader can see it without the finger hiding it.
+            // ---- The page the drag has reached ----
+            // Shown below the bar, where the finger on the bar does not hide
+            // it.
             AnimatedVisibility(
                 visible = scrubbing && dragPage >= 0,
                 enter = fadeIn(tween(80)),
@@ -203,14 +214,14 @@ fun PageNumberNavigator(
                 Box(
                     Modifier
                         .fillMaxWidth()
-                        .height(34.dp)
+                        .height(40.dp)
                         .background(c.surfaceRaised),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         "${dragPage + 1}",
                         color = c.text,
-                        fontSize = 18.sp,
+                        fontSize = 20.sp,
                         fontWeight = FontWeight.Medium,
                     )
                 }
@@ -218,5 +229,3 @@ fun PageNumberNavigator(
         }
     }
 }
-
-private fun abs(f: Float): Float = if (f < 0) -f else f

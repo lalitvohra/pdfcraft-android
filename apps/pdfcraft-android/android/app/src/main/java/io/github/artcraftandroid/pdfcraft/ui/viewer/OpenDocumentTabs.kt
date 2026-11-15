@@ -7,12 +7,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -36,6 +38,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -84,7 +88,7 @@ fun OpenDocumentTabs(
             state = listState,
             modifier = Modifier.weight(1f),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
-            contentPadding = PaddingValues(start = 6.dp, end = 6.dp, top = 5.dp, bottom = 5.dp),
+            contentPadding = PaddingValues(start = 6.dp, end = 4.dp, top = 5.dp, bottom = 5.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // The key must be a type Android can keep in a Bundle, so the
@@ -99,20 +103,27 @@ fun OpenDocumentTabs(
                     indexInList = index,
                 )
             }
-            item(key = -1) {
-                IconButton(onClick = onNewTab, modifier = Modifier.size(38.dp)) {
-                    Icon(
-                        LucideIcons.Plus,
-                        text(R.string.viewer_new_tab),
-                        tint = c.icon,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-            }
         }
+        // The + button, outside the scrolling tabs so it is always there:
+        // it is how another document is opened beside this one.
+        Box(
+            Modifier
+                .size(38.dp)
+                .clip(RoundedCornerShape(19.dp))
+                .clickable(onClick = onNewTab)
+                .semantics { contentDescription = text(R.string.viewer_new_tab) },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                LucideIcons.Plus,
+                null,
+                tint = c.icon,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        Spacer(Modifier.width(6.dp))
     }
 }
-
 /**
  * A tab that can be dragged to a new place.
  *
@@ -204,7 +215,10 @@ private fun ReorderableTabChip(
                 fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.width(132.dp),
+                // The title takes the room it needs, up to a limit, so a
+                // short name is a short tab and a long one still shows most
+                // of its name.
+                modifier = Modifier.widthIn(min = 60.dp, max = 220.dp),
             )
             IconButton(onClick = onClose, modifier = Modifier.size(30.dp)) {
                 Icon(

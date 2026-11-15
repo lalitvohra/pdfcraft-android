@@ -358,7 +358,7 @@ fun BookmarksSheet(vm: AppViewModel, doc: OpenDocument) {
                                 // where it is without opening it
                                 e.page?.let { p ->
                                     Text(
-                                        stringResource(R.string.sheet_page, p.toInt() + 1),
+                                        stringResource(R.string.sheet_page_number, p.toInt() + 1),
                                         color = c.textSecondary,
                                         fontSize = 13.sp,
                                         modifier = Modifier.padding(start = 8.dp),
@@ -433,7 +433,9 @@ internal fun UserBookmarkRow(name: String, page: Int, renaming: Boolean, onOpen:
         } else {
             Column(Modifier.weight(1f)) {
                 Text(name, color = c.text, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(stringResource(R.string.sheet_page, page + 1), color = c.textSecondary, fontSize = 13.sp)
+                // the page it goes to, the number on its own: it is clear it
+                // is a page, and it leaves room for the name
+                Text(stringResource(R.string.sheet_page_number, page + 1), color = c.textSecondary, fontSize = 13.sp)
             }
         }
         Box {

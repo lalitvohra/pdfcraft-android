@@ -100,6 +100,15 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
     var openDocuments by mutableStateOf<List<OpenDocument>>(emptyList())
         private set
 
+    /**
+     * The sheet that opens another document beside the one on screen: the
+     * documents the reader has opened before, and the ones on the phone.
+     *
+     * The open documents stay open behind it, so this is how several are
+     * kept open at once.
+     */
+    var openDocumentSheet by mutableStateOf(false)
+
     /** The tab strip: the open documents' titles, for the reader to pick from. */
     val openDocumentTitles: List<String>
         get() = openDocuments.map { it.title }

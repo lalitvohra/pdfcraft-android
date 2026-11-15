@@ -180,7 +180,7 @@ fun BookmarksPanelContent(
                                 // where it is without opening it
                                 e.page?.let { p ->
                                     Text(
-                                        stringResource(R.string.sheet_page, p.toInt() + 1),
+                                        stringResource(R.string.sheet_page_number, p.toInt() + 1),
                                         color = c.textSecondary,
                                         fontSize = 13.sp,
                                         modifier = Modifier.padding(start = 8.dp),

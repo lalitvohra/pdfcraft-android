@@ -416,6 +416,8 @@
     <string name="viewer_page_navigator">Page number navigator</string>
     <string name="viewer_hide_page_navigator">Hide the page number navigator</string>
     <string name="viewer_new_tab">Open another document</string>
+    <string name="viewer_open_another">Open another document</string>
+    <string name="viewer_no_other_documents">No other documents yet</string>
 
     <!-- Viewer: Find in the top bar -->
     <!-- Translator note: accessibility label of the arrow that closes Find. -->
@@ -742,6 +744,9 @@
     <string name="sheet_delete_all">Delete all</string>
     <!-- Translator note: %1$d is a page number -->
     <string name="sheet_page">Page %1$d</string>
+    <!-- The page a table of contents entry or a bookmark goes to: the number
+         on its own, where it is clear it is a page. -->
+    <string name="sheet_page_number">%1$d</string>
 
     <!-- Viewer sheets: More tools -->
     <string name="sheet_customize_toolbar">Customize toolbar</string>
