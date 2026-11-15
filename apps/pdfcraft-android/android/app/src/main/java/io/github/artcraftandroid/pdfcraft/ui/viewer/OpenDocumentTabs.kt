@@ -87,7 +87,9 @@ fun OpenDocumentTabs(
             contentPadding = PaddingValues(start = 6.dp, end = 6.dp, top = 5.dp, bottom = 5.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            itemsIndexed(documents, key = { _, d -> d.id }) { index, doc ->
+            // The key must be a type Android can keep in a Bundle, so the
+            // document's engine id (a ULong) cannot be one: the index is.
+            itemsIndexed(documents, key = { index, _ -> index }) { index, doc ->
                 ReorderableTabChip(
                     title = doc.title,
                     selected = doc === current,
@@ -97,7 +99,7 @@ fun OpenDocumentTabs(
                     indexInList = index,
                 )
             }
-            item(key = "new-tab") {
+            item(key = -1) {
                 IconButton(onClick = onNewTab, modifier = Modifier.size(38.dp)) {
                     Icon(
                         LucideIcons.Plus,

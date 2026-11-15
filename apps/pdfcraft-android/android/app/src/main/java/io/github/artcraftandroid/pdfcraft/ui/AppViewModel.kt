@@ -156,13 +156,26 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
                     closeQuietly(eng, doc)
                     readingMode = false
                     refreshRecents()
-                    if (doc.fromOtherApp) leave.trySend(Unit)
+                    leaveIfNothingLeft(doc)
                     return@launch
                 }
             }
             closeQuietly(eng, doc)
             refreshRecents()
         }
+    }
+
+    /**
+     * Go back to the app that opened the last document, when there is one.
+     *
+     * A document another app opened is closed by the reader going back out of
+     * it, so the app that lent it gets the reader back. But that is only so
+     * when the last document goes: with several open, the app stays, and the
+     * reader carries on with the others.
+     */
+    private fun leaveIfNothingLeft(closed: OpenDocument) {
+        if (openDocuments.isNotEmpty()) return
+        if (closed.fromOtherApp) leave.trySend(Unit)
     }
 
     var recentList by mutableStateOf<List<RecentFile>>(emptyList())
@@ -381,7 +394,7 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
             if (document == null) {
                 readingMode = false
                 refreshRecents()
-                if (doc.fromOtherApp) leave.trySend(Unit)
+                leaveIfNothingLeft(doc)
             }
         }
     }
@@ -395,18 +408,21 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
             null -> return
             true -> saveCopyAs(doc, then = {
                 document = null
+                // the document leaves the open ones too
+                openDocuments = openDocuments.filterNot { it === doc }
                 viewModelScope.launch {
                     closeQuietly(eng, doc)
                     refreshRecents()
-                    if (doc.fromOtherApp) leave.trySend(Unit)
+                    leaveIfNothingLeft(doc)
                 }
             })
             false -> {
                 document = null
+                openDocuments = openDocuments.filterNot { it === doc }
                 viewModelScope.launch {
                     closeQuietly(eng, doc)
                     refreshRecents()
-                    if (doc.fromOtherApp) leave.trySend(Unit)
+                    leaveIfNothingLeft(doc)
                 }
             }
         }
