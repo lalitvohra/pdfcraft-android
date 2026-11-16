@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The debug build's own name, so the launcher tells it apart from the
+  published app: this is a modified build, not the real PdfCraft. It
+  overrides res/values/strings.xml's app_name for the debug variant only
+  (the release build keeps the published name).
+-->
+<resources>
+    <string name="app_name" translatable="false">PdfCraft (mod)</string>
+</resources>

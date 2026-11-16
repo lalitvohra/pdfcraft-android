@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The debug build's own launcher icon: the published PdfCraft tile with a
+  blue ribbon across its corner, on a blue background, so the modified build
+  on a tablet is never mistaken for the real app. It overrides the release
+  mipmap/ic_launcher.xml for the debug variant only.
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background_debug" />
+    <foreground>
+        <inset
+            android:drawable="@drawable/ic_launcher_tile_debug"
+            android:inset="18dp" />
+    </foreground>
+    <monochrome>
+        <inset
+            android:drawable="@drawable/ic_launcher_tile_debug"
+            android:inset="18dp" />
+    </monochrome>
+</adaptive-icon>

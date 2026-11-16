@@ -47,6 +47,7 @@ import io.github.artcraftandroid.pdfcraft.ui.BarIcon
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.clickable
@@ -357,7 +358,17 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument, tabsAbove: Boolean = false
                     .padding(horizontal = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(doc.title.removeSuffix(".pdf"), color = Color(0xFF202020), fontSize = 13.sp, maxLines = 1)
+                // The name is as long as it is: without a cap the chip grew
+                // wider than the pages and slid under the side panel that is
+                // docked beside them.
+                Text(
+                    doc.title.removeSuffix(".pdf"),
+                    color = Color(0xFF202020),
+                    fontSize = 13.sp,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    modifier = Modifier.widthIn(max = 220.dp),
+                )
                 Spacer(Modifier.width(4.dp))
                 Text("PDF", color = Color(0xFF202020), fontSize = 11.sp)
             }
@@ -365,14 +376,19 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument, tabsAbove: Boolean = false
 
         // The bars.
         Column(Modifier.fillMaxWidth().align(Alignment.TopCenter)) {
-            // The status bar's band: black when the status bar in documents
-            // is off, as the reference has it. With the tab strip above the
-            // viewer the band is not there any more, and painting it would
-            // put a black bar between the strip and the viewer's bar.
+            // The status bar's band. It used to be painted black across its
+            // whole width, to hide the camera cutout on this tablet — but a
+            // black stripe across the top of the screen is ugly, and the
+            // camera is a small hole in one corner that the system already
+            // keeps the window clear of. The band now takes the app's own
+            // surface colour, like the bar under it.
+            // With the tab strip above the viewer the band is not there any
+            // more, and painting it would put a bar between the strip and
+            // the viewer's bar.
             if (!tabsAbove) {
                 Box(
                     Modifier.fillMaxWidth().height(with(density) { statusPx.toDp() })
-                        .background(if (!statusBar) Color.Black else if (ctl.barsVisible) c.surface else Color.Transparent),
+                        .background(if (ctl.barsVisible) c.surface else Color.Transparent),
                 )
             }
             AnimatedVisibility(
@@ -490,7 +506,12 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument, tabsAbove: Boolean = false
                 vm = vm,
                 doc = doc,
                 onClose = { ctl.sidePanelOpen = false },
-                modifier = Modifier.width(rowWidth * vm.sidePanelWidthFraction),
+                // The panel starts below the top bar: the bar is the whole
+                // width of the viewer, so the panel would otherwise cover its
+                // right-hand end — the title and the buttons on it.
+                modifier = Modifier
+                    .width(rowWidth * vm.sidePanelWidthFraction)
+                    .padding(top = with(density) { (statusPx + topPx).toDp() }),
             )
         }
         }
