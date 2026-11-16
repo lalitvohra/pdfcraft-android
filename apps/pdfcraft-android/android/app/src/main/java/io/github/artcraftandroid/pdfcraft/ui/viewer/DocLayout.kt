@@ -71,12 +71,18 @@ class DocLayout(
 
     init {
         val out = ArrayList<LRect>(pages.size)
+        // A viewport that has not been measured yet (width 0) would scale every
+        // page to a single pixel: the pages would be invisible and the reader
+        // would see nothing but the desk. Keep a usable width until the real
+        // viewport arrives.
+        val viewportW = viewW.coerceAtLeast(1f)
+        val viewportH = viewH.coerceAtLeast(1f)
         when (mode) {
             PageMode.Continuous -> {
                 val widest = pages.maxOfOrNull { it.width }?.coerceAtLeast(1f) ?: 1f
                 val two = spread != Spread.None
-                val scale = if (two) max(1f, viewW - 2 * margin - gap) / 2f / widest else max(1f, viewW - 2 * margin) / widest
-                val middle = viewW / 2f
+                val scale = if (two) max(1f, viewportW - 2 * margin - gap) / 2f / widest else max(1f, viewportW - 2 * margin) / widest
+                val middle = viewportW / 2f
                 var y = padTop
                 var i = 0
                 while (i < pages.size) {
@@ -86,15 +92,15 @@ class DocLayout(
                     var rowH = 0f
                     for (k in 0 until n) {
                         val p = pages[i + k]
-                        val w = p.width.coerceAtLeast(1f) * scale
-                        val h = p.height.coerceAtLeast(1f) * scale
+                        val pageW = p.width.coerceAtLeast(1f) * scale
+                        val pageH = p.height.coerceAtLeast(1f) * scale
                         val x = when {
-                            !two -> (viewW - w) / 2f
+                            !two -> (viewportW - pageW) / 2f
                             cover || k == 1 -> middle + gap / 2f
-                            else -> middle - gap / 2f - w
+                            else -> middle - gap / 2f - pageW
                         }
-                        out.add(LRect(x, y, x + w, y + h))
-                        rowH = max(rowH, h)
+                        out.add(LRect(x, y, x + pageW, y + pageH))
+                        rowH = max(rowH, pageH)
                     }
                     for (k in 0 until n) {
                         rowStart[i + k] = i
@@ -103,23 +109,23 @@ class DocLayout(
                     y += rowH + gap
                     i += n
                 }
-                width = viewW
-                height = if (pages.isEmpty()) viewH else y - gap + padBottom
+                width = viewportW
+                height = if (pages.isEmpty()) viewportH else y - gap + padBottom
             }
             PageMode.SinglePage -> {
-                val availW = max(1f, viewW - 2 * margin)
-                val availH = max(1f, viewH - padTop - padBottom - 2 * margin)
+                val availW = max(1f, viewportW - 2 * margin)
+                val availH = max(1f, viewportH - padTop - padBottom - 2 * margin)
                 pages.forEachIndexed { i, p ->
                     val s = min(availW / p.width.coerceAtLeast(1f), availH / p.height.coerceAtLeast(1f))
-                    val w = p.width.coerceAtLeast(1f) * s
-                    val h = p.height.coerceAtLeast(1f) * s
-                    val x = i * viewW + (viewW - w) / 2f
-                    val y = padTop + margin + (availH - h) / 2f
-                    out.add(LRect(x, y, x + w, y + h))
-                    rowBottom[i] = y + h
+                    val pageW = p.width.coerceAtLeast(1f) * s
+                    val pageH = p.height.coerceAtLeast(1f) * s
+                    val x = i * viewportW + (viewportW - pageW) / 2f
+                    val y = padTop + margin + (availH - pageH) / 2f
+                    out.add(LRect(x, y, x + pageW, y + pageH))
+                    rowBottom[i] = y + pageH
                 }
-                width = max(viewW, pages.size * viewW)
-                height = viewH
+                width = max(viewportW, pages.size * viewportW)
+                height = viewportH
             }
         }
         rects = out

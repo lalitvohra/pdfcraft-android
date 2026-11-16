@@ -23,6 +23,19 @@ class ViewerGeometryTest {
     }
 
     @Test
+    fun aViewportOfNoWidthDoesNotShrinkThePagesToNothing() {
+        // A viewport that has not been measured yet has no width. The pages
+        // must not be scaled to a single pixel: the reader would see nothing
+        // but the desk and the page would look blank.
+        val l = DocLayout(listOf(letter), PageMode.Continuous, 0f, 2000f, gap = 20f, margin = 0f, padTop = 0f, padBottom = 0f)
+        assertTrue("the page must keep a usable width", l.rects[0].width >= 1f)
+        assertTrue("the page must keep a usable height", l.rects[0].height >= 1f)
+        // once the viewport is measured the page is laid out normally
+        val measured = DocLayout(listOf(letter), PageMode.Continuous, 1080f, 2000f, gap = 20f, margin = 0f, padTop = 0f, padBottom = 0f)
+        assertEquals(1080f, measured.rects[0].width, 0.01f)
+    }
+
+    @Test
     fun continuousStacksPagesFittedToTheWidestPage() {
         val l = DocLayout(listOf(letter, landscape, letter), PageMode.Continuous, 1080f, 2000f, gap = 20f, margin = 0f, padTop = 100f, padBottom = 50f)
         // the widest page (landscape, 792 pt) fills the width; the others share its scale

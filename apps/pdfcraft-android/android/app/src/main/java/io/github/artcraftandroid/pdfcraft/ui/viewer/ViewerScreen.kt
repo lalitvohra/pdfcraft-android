@@ -45,6 +45,7 @@ import androidx.compose.foundation.layout.imePadding
 import io.github.artcraftandroid.pdfcraft.ui.LucideIcons
 import io.github.artcraftandroid.pdfcraft.ui.BarIcon
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Row
@@ -463,11 +464,12 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument, tabsAbove: Boolean = false
             // the navigation bar's band stays solid while the bars show (also while searching)
             if (ctl.barsVisible) Box(Modifier.fillMaxWidth().windowInsetsBottomHeight(WindowInsets.navigationBars).background(c.navBand))
         }
-        }
 
         // The page number navigator. It is drawn after the bars, so it is
         // over them: it floats over the page and the reader can drag it
-        // where they want it.
+        // where they want it. It stays inside the pages' box: a box of its
+        // own beside the pages in the row would take the row's whole width
+        // and leave the pages none.
         if (!vm.readingMode) {
             Box(Modifier.fillMaxSize().then(cutoutSides)) {
                 PageNumberNavigator(
@@ -479,16 +481,22 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument, tabsAbove: Boolean = false
                 )
             }
         }
+        }
 
         // The Bookmarks & Table of Contents side panel, docked to the end
-        // edge beside the pages.
+        // edge beside the pages. Its width is a fraction of the row it sits
+        // in, not of the screen: the row is narrower than the screen when the
+        // bars or the tab strip take some of it, and a panel wider than the
+        // row would leave the pages nothing.
         if (ctl.sidePanelOpen && !vm.readingMode) {
-            SidePanelHost(
-                vm = vm,
-                doc = doc,
-                onClose = { ctl.sidePanelOpen = false },
-                modifier = Modifier.width((config.screenWidthDp * vm.sidePanelWidthFraction).dp),
-            )
+            BoxWithConstraints(Modifier.weight(1f).fillMaxHeight()) {
+                SidePanelHost(
+                    vm = vm,
+                    doc = doc,
+                    onClose = { ctl.sidePanelOpen = false },
+                    modifier = Modifier.width(maxWidth * vm.sidePanelWidthFraction),
+                )
+            }
         }
         }
         // The active tool's sheets, over everything.
