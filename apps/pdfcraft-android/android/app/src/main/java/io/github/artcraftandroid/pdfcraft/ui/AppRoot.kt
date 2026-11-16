@@ -104,10 +104,15 @@ fun AppRoot(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: () -> 
     // The tab strip of the open documents is shown as soon as a document is
     // open: its + button is how the reader opens another one beside it.
     val tabsShowing = doc != null && vm.openDocuments.isNotEmpty()
+    // The tab strip is drawn over the viewer, so the viewer has to leave
+    // room for it: the page starts below the strip, and so does the
+    // viewer's own top bar.
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val tabsHeightPx = if (tabsShowing) with(density) { io.github.artcraftandroid.pdfcraft.ui.viewer.TAB_STRIP_HEIGHT.toPx() } else 0f
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         if (fullWidthViewer && doc != null) {
-            Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal))) { ViewerScreen(vm, doc, tabsAbove = tabsShowing && fullWidthViewer) }
+            Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal))) { ViewerScreen(vm, doc, tabsAbove = tabsShowing && fullWidthViewer, tabsHeightPx = tabsHeightPx) }
         }
         Box(
             Modifier.fillMaxSize()
@@ -115,33 +120,27 @@ fun AppRoot(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: () -> 
                 .then(if (fullWidthViewer) Modifier else Modifier.background(c.surface)),
         ) {
             Column(Modifier.fillMaxSize()) {
-            // The tab strip of the open documents. It is a bar of its own,
-            // above the viewer, so the viewer has the rest of the screen for
-            // the page. With the status bar in documents the viewer is laid
-            // out full width under it, and the strip is drawn over the page
-            // instead (below).
-            if (tabsShowing && !fullWidthViewer) {
-                io.github.artcraftandroid.pdfcraft.ui.viewer.OpenDocumentTabs(
-                    vm = vm,
-                    documents = vm.openDocuments,
-                    current = doc,
-                    onSelect = { vm.selectDocument(it) },
-                    onClose = { vm.closeDocumentAt(it) },
-                    onReorder = { from, to -> vm.reorderDocument(from, to) },
-                    onNewTab = { vm.openDocumentSheet = true },
-                )
-            }
             Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
                 fullWidthViewer -> Unit
-                doc != null -> ViewerScreen(vm, doc, tabsAbove = tabsShowing && fullWidthViewer)
+                doc != null -> ViewerScreen(vm, doc, tabsAbove = tabsShowing && fullWidthViewer, tabsHeightPx = tabsHeightPx)
                 else -> HomeRoot(vm, onBrowse)
             }
             }
             }
-            // In the full-width viewer the strip is drawn over the page, so
-            // it is there either way.
-            if (tabsShowing && fullWidthViewer) {
+            // The tab strip of the open documents.
+            //
+            // It is drawn here, over the viewer, and NOT as a column above
+            // it: the pages are drawn into a native canvas, and that canvas
+            // is composited over anything Compose drew before it. A strip in
+            // the column was therefore laid out correctly and painted
+            // correctly — and then covered by the page as soon as the
+            // reader scrolled. Drawn after the viewer it keeps the same
+            // advantage the viewer's own top bar has.
+            //
+            // The viewer is told how tall the strip is, so the page starts
+            // below it instead of under it.
+            if (tabsShowing) {
                 io.github.artcraftandroid.pdfcraft.ui.viewer.OpenDocumentTabs(
                     vm = vm,
                     documents = vm.openDocuments,

@@ -86,7 +86,7 @@ import kotlin.math.roundToInt
  * selection, the active tool's layer and sub-toolbar, and the sheets.
  */
 @Composable
-fun ViewerScreen(vm: AppViewModel, doc: OpenDocument, tabsAbove: Boolean = false) {
+fun ViewerScreen(vm: AppViewModel, doc: OpenDocument, tabsAbove: Boolean = false, tabsHeightPx: Float = 0f) {
     val c = pdfColors
     val ctl = doc.controller
     val scope = rememberCoroutineScope()
@@ -123,6 +123,12 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument, tabsAbove: Boolean = false
     val barSides = if (statusBar) Modifier.background(c.surface).then(cutoutSides) else Modifier
 
     // The page area starts under the top bar while it shows, and leaves room for the bottom bar.
+    //
+    // The tab strip of the open documents is drawn over the viewer, so the
+    // page has to start below it — and so does the viewer's own top bar.
+    // The strip is drawn over the page rather than above it because the page
+    // is a native canvas, and that canvas is composited over anything
+    // Compose drew before it.
     val statusPx = maxOf(WindowInsets.statusBars.getTop(density), WindowInsets.displayCutout.getTop(density)).toFloat()
     val navPx = WindowInsets.navigationBars.getBottom(density).toFloat()
     val topPx = with(density) { TopBarHeight.toPx() }
@@ -130,11 +136,21 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument, tabsAbove: Boolean = false
     var quickExtraPx by remember { mutableIntStateOf(0) }
     val bottomPx = with(density) { if (ctl.tool == ViewerTool.None) QuickBarHeight.toPx() + quickExtraPx else BottomBarHeight.toPx() }
     // keyed on the document too: one opened over another (Create, Combine) has a fresh page view
-    LaunchedEffect(doc, ctl.barsVisible, statusPx, navPx, ctl.searching, ctl.tool, vm.readingMode, bottomPx, statusBar) {
+    LaunchedEffect(doc, ctl.barsVisible, statusPx, navPx, ctl.searching, ctl.tool, vm.readingMode, bottomPx, statusBar, tabsHeightPx) {
         val bottomShown = ctl.barsVisible && !ctl.searching && !vm.readingMode
         doc.viewer.setPadding(
             // with the status bar in documents, the page goes up to the top edge once the bars hide
-            top = if (ctl.barsVisible) statusPx + topPx else if (statusBar) 0f else statusPx,
+            //
+            // The tab strip is drawn over the viewer, so it takes the top of
+            // the screen and the page starts below it. The status bar's band
+            // is not drawn under the strip (it would be a second bar there),
+            // so the band is not counted either.
+            top = when {
+                tabsHeightPx > 0f -> if (ctl.barsVisible) tabsHeightPx + topPx else tabsHeightPx
+                ctl.barsVisible -> statusPx + topPx
+                statusBar -> 0f
+                else -> statusPx
+            },
             bottom = if (bottomShown) bottomPx + navPx else navPx,
         )
     }
@@ -374,18 +390,81 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument, tabsAbove: Boolean = false
             }
         }
 
+        // the Read Aloud player takes the bottom bar's place
+        // while typing on the page, the bar (with its formatting) rides above the keyboard
+        if (vm.readAloud == null && vm.fieldActions == null) Column(Modifier.fillMaxWidth().align(Alignment.BottomCenter).then(if (vm.editing != null) Modifier.imePadding() else Modifier)) {
+            vm.success?.let { SuccessBannerView(it, onClose = { vm.success = null }) }
+            AnimatedVisibility(
+                ctl.barsVisible && !ctl.searching && !vm.readingMode,
+                enter = slideInVertically(tween(PdfMotion.BARS_MS)) { it } + fadeIn(tween(PdfMotion.BARS_MS)),
+                exit = slideOutVertically(tween(PdfMotion.BARS_MS)) { it } + fadeOut(tween(PdfMotion.BARS_MS)),
+            ) {
+                Column(barSides) {
+                    if (ctl.tool == ViewerTool.None) {
+                        QuickToolbar(
+                            tools = vm.quickToolbar.bar,
+                            onTool = { vm.runQuickTool(doc, it) },
+                            onMoreTools = { ctl.sheet = if (ctl.sheet == ViewerSheet.MoreTools) ViewerSheet.None else ViewerSheet.MoreTools },
+                            moreToolsOpen = ctl.sheet == ViewerSheet.MoreTools,
+                            chips = listOf(
+                                QuickChip(stringResource(if (vm.isStarred(doc)) R.string.viewer_unstar_file else R.string.viewer_star_file), LucideIcons.Star, ToolHues.combine) { vm.toggleStar(doc) },
+                                QuickChip(stringResource(R.string.common_tool_read_aloud), LucideIcons.Headphones, ToolHues.read) { vm.startReadAloud(doc) },
+                                QuickChip(stringResource(R.string.common_tool_create_pdf), QuickTool.Create.icon, ToolHues.create) { vm.runQuickTool(doc, QuickTool.Create) },
+                                QuickChip(stringResource(R.string.common_tool_organize), QuickTool.Organize.icon, ToolHues.organize) { vm.runQuickTool(doc, QuickTool.Organize) },
+                            ),
+                            onExtraHeight = { quickExtraPx = it },
+                        )
+                    } else {
+                        ToolSubToolbar(vm, doc)
+                    }
+                }
+
+            }
+            // the navigation bar's band stays solid while the bars show (also while searching)
+            if (ctl.barsVisible) Box(Modifier.fillMaxWidth().windowInsetsBottomHeight(WindowInsets.navigationBars).background(c.navBand))
+        }
+
+        }
+
+        // The Bookmarks & Table of Contents side panel, docked to the end
+        // edge beside the pages. It is a fixed-width child of the row: a
+        // weighted one would split the row with the pages and halve the
+        // page area.
+        if (ctl.sidePanelOpen && !vm.readingMode) {
+            SidePanelHost(
+                vm = vm,
+                doc = doc,
+                onClose = { ctl.sidePanelOpen = false },
+                // The panel starts below the top bar: the bar is the whole
+                // width of the viewer, so the panel would otherwise cover its
+                // right-hand end — the title and the buttons on it. The bar
+                // itself starts below the tab strip, so that is counted too.
+                modifier = Modifier
+                    .width(rowWidth * vm.sidePanelWidthFraction)
+                    .padding(top = with(density) { (topPx + if (tabsHeightPx > 0f) tabsHeightPx else statusPx).toDp() }),
+            )
+        }
+        }
+
         // The bars.
-        Column(Modifier.fillMaxWidth().align(Alignment.TopCenter)) {
+        //
+        // The tab strip of the open documents is drawn over the viewer, at
+        // the top: the page is a native canvas and that canvas is
+        // composited over anything Compose drew before it, so a strip in a
+        // column above the viewer was covered by the page as soon as the
+        // reader scrolled. The bar therefore starts below the strip.
+        Column(Modifier.fillMaxWidth().padding(top = with(density) { tabsHeightPx.toDp() })) {
             // The status bar's band. It used to be painted black across its
             // whole width, to hide the camera cutout on this tablet — but a
             // black stripe across the top of the screen is ugly, and the
             // camera is a small hole in one corner that the system already
             // keeps the window clear of. The band now takes the app's own
             // surface colour, like the bar under it.
-            // With the tab strip above the viewer the band is not there any
-            // more, and painting it would put a bar between the strip and
-            // the viewer's bar.
-            if (!tabsAbove) {
+            // With the tab strip over the viewer the band is not there any
+            // more: the strip is already in that space, and painting a band
+            // under it would put a bar between the strip and the viewer's
+            // bar.
+            if (!tabsAbove && tabsHeightPx <= 0f) {
                 Box(
                     Modifier.fillMaxWidth().height(with(density) { statusPx.toDp() })
                         .background(if (ctl.barsVisible) c.surface else Color.Transparent),
@@ -460,60 +539,6 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument, tabsAbove: Boolean = false
                 }
                 }
             }
-        }
-        // the Read Aloud player takes the bottom bar's place
-        // while typing on the page, the bar (with its formatting) rides above the keyboard
-        if (vm.readAloud == null && vm.fieldActions == null) Column(Modifier.fillMaxWidth().align(Alignment.BottomCenter).then(if (vm.editing != null) Modifier.imePadding() else Modifier)) {
-            vm.success?.let { SuccessBannerView(it, onClose = { vm.success = null }) }
-            AnimatedVisibility(
-                ctl.barsVisible && !ctl.searching && !vm.readingMode,
-                enter = slideInVertically(tween(PdfMotion.BARS_MS)) { it } + fadeIn(tween(PdfMotion.BARS_MS)),
-                exit = slideOutVertically(tween(PdfMotion.BARS_MS)) { it } + fadeOut(tween(PdfMotion.BARS_MS)),
-            ) {
-                Column(barSides) {
-                    if (ctl.tool == ViewerTool.None) {
-                        QuickToolbar(
-                            tools = vm.quickToolbar.bar,
-                            onTool = { vm.runQuickTool(doc, it) },
-                            onMoreTools = { ctl.sheet = if (ctl.sheet == ViewerSheet.MoreTools) ViewerSheet.None else ViewerSheet.MoreTools },
-                            moreToolsOpen = ctl.sheet == ViewerSheet.MoreTools,
-                            chips = listOf(
-                                QuickChip(stringResource(if (vm.isStarred(doc)) R.string.viewer_unstar_file else R.string.viewer_star_file), LucideIcons.Star, ToolHues.combine) { vm.toggleStar(doc) },
-                                QuickChip(stringResource(R.string.common_tool_read_aloud), LucideIcons.Headphones, ToolHues.read) { vm.startReadAloud(doc) },
-                                QuickChip(stringResource(R.string.common_tool_create_pdf), QuickTool.Create.icon, ToolHues.create) { vm.runQuickTool(doc, QuickTool.Create) },
-                                QuickChip(stringResource(R.string.common_tool_organize), QuickTool.Organize.icon, ToolHues.organize) { vm.runQuickTool(doc, QuickTool.Organize) },
-                            ),
-                            onExtraHeight = { quickExtraPx = it },
-                        )
-                    } else {
-                        ToolSubToolbar(vm, doc)
-                    }
-                }
-
-            }
-            // the navigation bar's band stays solid while the bars show (also while searching)
-            if (ctl.barsVisible) Box(Modifier.fillMaxWidth().windowInsetsBottomHeight(WindowInsets.navigationBars).background(c.navBand))
-        }
-
-        }
-
-        // The Bookmarks & Table of Contents side panel, docked to the end
-        // edge beside the pages. It is a fixed-width child of the row: a
-        // weighted one would split the row with the pages and halve the
-        // page area.
-        if (ctl.sidePanelOpen && !vm.readingMode) {
-            SidePanelHost(
-                vm = vm,
-                doc = doc,
-                onClose = { ctl.sidePanelOpen = false },
-                // The panel starts below the top bar: the bar is the whole
-                // width of the viewer, so the panel would otherwise cover its
-                // right-hand end — the title and the buttons on it.
-                modifier = Modifier
-                    .width(rowWidth * vm.sidePanelWidthFraction)
-                    .padding(top = with(density) { (statusPx + topPx).toDp() }),
-            )
-        }
         }
 
         // The page number navigator. It is drawn after the row, so it is

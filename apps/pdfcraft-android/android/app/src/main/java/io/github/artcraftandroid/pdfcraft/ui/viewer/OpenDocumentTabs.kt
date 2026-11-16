@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -60,6 +61,15 @@ import io.github.artcraftandroid.pdfcraft.ui.pdfColors
  * - A long press on a tab and a drag reorders the tabs.
  * - The + button opens another document.
  */
+/**
+ * The height of the strip of open documents: a 34 dp chip with room either side.
+ *
+ * It is public because the viewer needs it: the strip is drawn over the
+ * viewer (the page is a native canvas, and that canvas is composited over
+ * anything Compose drew before it), and the viewer has to leave room for it.
+ */
+val TAB_STRIP_HEIGHT = 46.dp
+
 @Composable
 fun OpenDocumentTabs(
     vm: AppViewModel,
@@ -81,14 +91,18 @@ fun OpenDocumentTabs(
     }
 
     Row(
-        modifier.fillMaxWidth().background(c.surface),
+        // The strip's height is fixed. Without it the column below it (the
+        // viewer) was measured before the strip knew its height, so the
+        // viewer was given the whole column and drawn over the strip: the
+        // strip was laid out correctly but never painted.
+        modifier.fillMaxWidth().height(TAB_STRIP_HEIGHT).background(c.surface),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         LazyRow(
             state = listState,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f).fillMaxHeight(),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
-            contentPadding = PaddingValues(start = 6.dp, end = 4.dp, top = 5.dp, bottom = 5.dp),
+            contentPadding = PaddingValues(start = 6.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // The key must be a type Android can keep in a Bundle, so the
@@ -205,7 +219,7 @@ private fun ReorderableTabChip(
                 .clip(RoundedCornerShape(8.dp))
                 .background(if (selected) c.pressed else Color.Transparent)
                 .clickable { onClick() }
-                .heightIn(min = 34.dp)
+                .height(34.dp)
                 .padding(start = 12.dp, end = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -220,7 +234,10 @@ private fun ReorderableTabChip(
                 // short name is a short tab and a long one still shows most
                 // of its name. The weight is what bounds it: without it the
                 // row would take the whole width the list gives it.
-                modifier = Modifier.weight(1f, fill = false),
+                // The bound is on the **text**, not a weight on it: a
+                // `LazyRow` gives its items unbounded width, and a weighted
+                // text in an unbounded row measures at nothing.
+                modifier = Modifier.widthIn(max = 180.dp),
             )
             IconButton(onClick = onClose, modifier = Modifier.size(30.dp)) {
                 Icon(
