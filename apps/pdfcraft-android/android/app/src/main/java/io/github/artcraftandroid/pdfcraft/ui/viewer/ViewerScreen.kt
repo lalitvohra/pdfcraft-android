@@ -214,6 +214,15 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument, tabsAbove: Boolean = false
         // The pages and the side panel share the width. The panel docks to the
         // end edge; the pages take what is left of it. The bars are drawn
         // outside this row, so they keep the whole width.
+        //
+        // The panel's width is a fraction of this row's width, not of the
+        // screen: the row is narrower than the screen when the bars or the
+        // tab strip take some of it, and a panel wider than the row would
+        // leave the pages nothing. The row's width is read from the
+        // constraints around it, so the panel can be sized before the row
+        // is measured.
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+        val rowWidth = maxWidth
         Row(Modifier.fillMaxSize()) {
         Box(Modifier.weight(1f).fillMaxHeight()) {
         if (vm.readingMode) ReadingModeContent(
@@ -484,19 +493,17 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument, tabsAbove: Boolean = false
         }
 
         // The Bookmarks & Table of Contents side panel, docked to the end
-        // edge beside the pages. Its width is a fraction of the row it sits
-        // in, not of the screen: the row is narrower than the screen when the
-        // bars or the tab strip take some of it, and a panel wider than the
-        // row would leave the pages nothing.
+        // edge beside the pages. It is a fixed-width child of the row: a
+        // weighted one would split the row with the pages and halve the
+        // page area.
         if (ctl.sidePanelOpen && !vm.readingMode) {
-            BoxWithConstraints(Modifier.weight(1f).fillMaxHeight()) {
-                SidePanelHost(
-                    vm = vm,
-                    doc = doc,
-                    onClose = { ctl.sidePanelOpen = false },
-                    modifier = Modifier.width(maxWidth * vm.sidePanelWidthFraction),
-                )
-            }
+            SidePanelHost(
+                vm = vm,
+                doc = doc,
+                onClose = { ctl.sidePanelOpen = false },
+                modifier = Modifier.width(rowWidth * vm.sidePanelWidthFraction),
+            )
+        }
         }
         }
         // The active tool's sheets, over everything.
