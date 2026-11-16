@@ -416,6 +416,7 @@
     <string name="viewer_page_navigator">Page number navigator</string>
     <string name="viewer_hide_page_navigator">Hide the page number navigator</string>
     <string name="viewer_page_numpad">Type a page number</string>
+    <string name="viewer_page_navigator_scrub">Scrub to a page</string>
     <string name="viewer_page_go">Go</string>
     <string name="viewer_new_tab">Open another document</string>
     <string name="viewer_open_another">Open another document</string>

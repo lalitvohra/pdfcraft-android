@@ -3,6 +3,7 @@ package io.github.artcraftandroid.pdfcraft.ui.viewer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -38,6 +39,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -77,14 +79,23 @@ fun BoxScope.PageNumberNavigator(
     val density = LocalDensity.current
 
     if (doc.pageCount < 1) return
+    // The panel is shown only when the reader asks for it: the bar's X and
+    // the top-bar button both clear this flag. Without this the panel would
+    // stay on screen whatever the flag said, and the X would do nothing.
+    if (!visible) return
 
-    // The drag offset from the parent's bottom-end corner, in pixels.
+    // The drag offset from the parent's bottom-end corner, in pixels. It is
+    // not clamped: the panel may be put anywhere on the page, the way the
+    // dial pad in our own app may be.
     var offsetX by remember { mutableStateOf(0f) }
     var offsetY by remember { mutableStateOf(0f) }
     // While the panel is dragged, the page it has reached.
     var scrubbing by remember { mutableStateOf(false) }
     var dragPage by remember { mutableStateOf(-1) }
     var scrubStart by remember { mutableStateOf(0f) }
+    // The page the scrub started on: the count runs from here, so that going
+    // to a page mid-drag does not shift the base.
+    var scrubBase by remember { mutableIntStateOf(0) }
     // Whether the numpad is showing.
     var padOpen by remember { mutableStateOf(false) }
     // The digits typed so far.
@@ -94,13 +105,11 @@ fun BoxScope.PageNumberNavigator(
     // The title bar's width, so a tap can be told apart by where it lands.
     var barWidthPx by remember { mutableIntStateOf(0) }
 
-    // How far the panel may be dragged: up, towards the tab strip, and down.
-    val maxUp = with(density) { 200.dp.toPx() }
-    val maxDown = with(density) { 120.dp.toPx() }
-
-    // The panel is anchored at the bottom-end corner of the page. The
-    // alignment is set here rather than passed in, because a Modifier that
-    // carried it would lose its scope on the way here.
+    // The panel is anchored at the bottom-end corner of the pages, not of
+    // the whole viewer: the side panel is docked at the end edge beside the
+    // pages, and the panel must not start underneath it. The alignment is
+    // set here rather than passed in, because a Modifier that carried it
+    // would lose its scope on the way here.
     Box(
         Modifier.matchParentSize(),
         contentAlignment = Alignment.BottomEnd,
@@ -108,12 +117,7 @@ fun BoxScope.PageNumberNavigator(
         Column(
             Modifier
                 .padding(end = 16.dp, bottom = 150.dp)
-                .offset {
-                    IntOffset(
-                        offsetX.roundToInt().coerceIn(-maxUp.roundToInt(), 0),
-                        offsetY.roundToInt().coerceIn(-maxDown.roundToInt(), 0),
-                    )
-                }
+                .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
                 .shadow(8.dp, RoundedCornerShape(12.dp))
                 .clip(RoundedCornerShape(12.dp))
                 .background(c.surface),
@@ -146,55 +150,24 @@ fun BoxScope.PageNumberNavigator(
                     }
                     .pointerInput(doc) {
                         detectDragGestures(
-                            onDragStart = {
-                                scrubbing = false
-                                dragPage = -1
-                                scrubStart = 0f
-                            },
-                            onDragEnd = {
-                                scrubbing = false
-                                dragPage = -1
-                                onDrag()
-                            },
-                            onDragCancel = {
-                                scrubbing = false
-                                dragPage = -1
-                            },
+                            onDragStart = { onDrag() },
                         ) { change, drag ->
                             change.consume()
-                            if (!scrubbing) {
-                                // A drag that is mostly vertical scrubs
-                                // through the document; any other drag moves
-                                // the panel.
-                                if (kotlin.math.abs(drag.y) > kotlin.math.abs(drag.x) && kotlin.math.abs(drag.y) > 0f) {
-                                    scrubbing = true
-                                    scrubStart = v.scrollY
-                                } else {
-                                    offsetX += drag.x
-                                    offsetY += drag.y
-                                    return@detectDragGestures
-                                }
-                            }
-                            if (scrubbing) {
-                                val page = ((scrubStart + drag.y) / (v.viewH / v.zoom).coerceAtLeast(1f)).toInt()
-                                    .coerceIn(0, doc.pageCount - 1)
-                                if (page != dragPage) {
-                                    dragPage = page
-                                    v.goToPage(page)
-                                    onDrag()
-                                }
-                            }
+                            // The bar is the drag handle: it moves the panel,
+                            // in every direction. Scrubbing through the
+                            // document is on the grip icon, so the two do not
+                            // fight over the same gesture.
+                            offsetX += drag.x
+                            offsetY += drag.y
                         }
                     }
                     .padding(horizontal = 8.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(
-                    LucideIcons.GripVertical,
-                    null,
-                    tint = if (scrubbing) Color.White else c.icon,
-                    modifier = Modifier.size(16.dp),
-                )
+                // The grip is not here: it lives in its own row below the
+                // bar, so the bar's drag detector does not swallow the
+                // scrubbing gesture. The reference's dial pad does the same
+                // with its resize grip.
                 Spacer(Modifier.width(4.dp))
                 Text(
                     stringResource(R.string.viewer_go_to_page),
@@ -228,23 +201,53 @@ fun BoxScope.PageNumberNavigator(
                 )
             }
 
-            // ---- The page the drag has reached ----
-            // Shown below the bar, where the finger on the bar does not hide
-            // it.
-            androidx.compose.animation.AnimatedVisibility(
-                visible = scrubbing && dragPage >= 0,
-                enter = androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(80)),
-                exit = androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(150)),
+            // ---- The scrub strip ----
+            // Its own row, with its own drag detector: the bar's detector
+            // would swallow the gesture if the grip were inside the bar.
+            // Dragging it up moves forward through the document.
+            Box(
+                Modifier
+                    .widthIn(min = 150.dp, max = 230.dp)
+                    .height(40.dp)
+                    .background(c.surfaceRaised)
+                    .pointerInput(doc) {
+                        detectVerticalDragGestures(
+                            onDragStart = {
+                                scrubbing = true
+                                dragPage = v.currentPage
+                                scrubStart = 0f
+                                // The page the drag started on: the count
+                                // runs from here, so that going to a page
+                                // mid-drag does not shift the base.
+                                scrubBase = v.currentPage
+                            },
+                            onDragEnd = { scrubbing = false; dragPage = -1 },
+                            onDragCancel = { scrubbing = false; dragPage = -1 },
+                        ) { change, dragAmount ->
+                            change.consume()
+                            // Dragging up goes forward, the way scrolling up
+                            // the document does.
+                            scrubStart -= dragAmount
+                            val page = scrubPage(scrubBase, scrubStart, v.viewH / v.zoom, doc.pageCount)
+                            if (page != dragPage) {
+                                dragPage = page
+                                v.goToPage(page)
+                                onDrag()
+                            }
+                        }
+                    },
+                contentAlignment = Alignment.Center,
             ) {
-                Box(
-                    Modifier
-                        .widthIn(min = 150.dp, max = 230.dp)
-                        .height(40.dp)
-                        .background(c.surfaceRaised),
-                    contentAlignment = Alignment.Center,
-                ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        LucideIcons.GripVertical,
+                        stringResource(R.string.viewer_page_navigator_scrub),
+                        tint = if (scrubbing) c.accent else c.icon,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(Modifier.width(4.dp))
                     Text(
-                        "${dragPage + 1}",
+                        if (dragPage >= 0) "${dragPage + 1}" else "${v.currentPage + 1}",
                         color = c.text,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Medium,
@@ -380,3 +383,30 @@ private fun NumpadKey(
         Text(label, color = fg, fontSize = 18.sp, fontWeight = FontWeight.Medium)
     }
 }
+
+/**
+ * The page a scrub has reached: [base] plus the pages the drag has covered.
+ *
+ * [dragged] is how far the finger has travelled up the page (positive is
+ * forward), [pageHeight] the height of one page in pixels, and [pages] the
+ * number of pages in the document. The result is clamped to the document.
+ *
+ * The count runs from the page the drag started on, not from the scroll
+ * position: the scroll only moves once the page has changed, so deriving
+ * the page from it would never leave the first page.
+ */
+internal fun scrubPage(base: Int, dragged: Float, pageHeight: Float, pages: Int): Int {
+    // A page height of zero would divide by zero, and the drag would then
+    // throw the reader to the last page: a page that cannot be measured
+    // simply does not move the count.
+    if (pageHeight <= 0f) return base.coerceIn(0, (pages - 1).coerceAtLeast(0))
+    return (base + (dragged / pageHeight).toInt()).coerceIn(0, (pages - 1).coerceAtLeast(0))
+}
+
+/**
+ * The width of the pages, given the width of the row and the fraction the
+ * side panel takes of it. The side panel is docked at the end edge beside
+ * the pages, so the pages get the rest.
+ */
+internal fun pagesWidth(rowWidth: Dp, panelFraction: Float, panelOpen: Boolean): Dp =
+    if (panelOpen) rowWidth * (1f - panelFraction) else rowWidth

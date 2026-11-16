@@ -77,6 +77,7 @@ import io.github.artcraftandroid.pdfcraft.ui.SheetHost
 import io.github.artcraftandroid.pdfcraft.ui.pdfColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 /**
  * The document viewer: the pages, the top bar and the bottom quick toolbar (a tap on the page
@@ -223,6 +224,9 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument, tabsAbove: Boolean = false
         // is measured.
         BoxWithConstraints(Modifier.fillMaxSize()) {
         val rowWidth = maxWidth
+        // The width of the pages: the row less the side panel's share. The
+        // navigator is anchored at the end of the pages, not of the viewer.
+        val pageAreaWidth = pagesWidth(rowWidth, vm.sidePanelWidthFraction, ctl.sidePanelOpen && !vm.readingMode)
         Row(Modifier.fillMaxSize()) {
         Box(Modifier.weight(1f).fillMaxHeight()) {
         if (vm.readingMode) ReadingModeContent(
@@ -469,27 +473,12 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument, tabsAbove: Boolean = false
                         ToolSubToolbar(vm, doc)
                     }
                 }
+
             }
             // the navigation bar's band stays solid while the bars show (also while searching)
             if (ctl.barsVisible) Box(Modifier.fillMaxWidth().windowInsetsBottomHeight(WindowInsets.navigationBars).background(c.navBand))
         }
 
-        // The page number navigator. It is drawn after the bars, so it is
-        // over them: it floats over the page and the reader can drag it
-        // where they want it. It stays inside the pages' box: a box of its
-        // own beside the pages in the row would take the row's whole width
-        // and leave the pages none.
-        if (!vm.readingMode) {
-            Box(Modifier.fillMaxSize().then(cutoutSides)) {
-                PageNumberNavigator(
-                    doc = doc,
-                    visible = ctl.navigatorOpen && ctl.tool == ViewerTool.None && !ctl.searching,
-                    onDrag = { ctl.lastMoved = SystemClock.uptimeMillis() },
-                    onTap = { ctl.goToPage = true },
-                    onClose = { ctl.navigatorOpen = false },
-                )
-            }
-        }
         }
 
         // The Bookmarks & Table of Contents side panel, docked to the end
@@ -505,7 +494,28 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument, tabsAbove: Boolean = false
             )
         }
         }
+
+        // The page number navigator. It is drawn after the row, so it is
+        // over the bars and over the side panel that is docked beside the
+        // pages: the reader may drag it anywhere, and it must stay on top
+        // wherever they put it. It is not a child of the row — a box of its
+        // own there would take the row's whole width and leave the pages
+        // none — but of the row's parent, which is as wide as the viewer.
+        // Its own width is that of the pages, so it starts at the bottom-end
+        // of the pages and not under the side panel.
+        if (!vm.readingMode) {
+            Box(Modifier.width(pageAreaWidth).fillMaxHeight().then(cutoutSides)) {
+                PageNumberNavigator(
+                    doc = doc,
+                    visible = ctl.navigatorOpen && ctl.tool == ViewerTool.None && !ctl.searching,
+                    onDrag = { ctl.lastMoved = SystemClock.uptimeMillis() },
+                    onTap = { ctl.goToPage = true },
+                    onClose = { ctl.navigatorOpen = false },
+                )
+            }
         }
+        }
+
         // The active tool's sheets, over everything.
         ToolSheets(vm, doc)
 
