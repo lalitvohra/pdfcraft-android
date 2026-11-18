@@ -9,7 +9,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -27,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -62,13 +66,37 @@ fun BookmarksPanelContent(
     modifier: Modifier = Modifier,
 ) {
     val c = pdfColors
-    var outline by remember { mutableStateOf<List<OutlineEntry>?>(null) }
-    LaunchedEffect(doc.info.generation) { outline = vm.outline(doc) }
+    // The system button row sits over the bottom of the panel. The lists
+    // leave room for it as **content padding**, so the last entry can be
+    // scrolled up clear of the buttons and pressed — padding the panel
+    // itself would move the header too.
+    //
+    // It is `safeDrawing` and not `navigationBars`: the viewer hides the
+    // system bars, so `navigationBars` reports nothing and the last entry
+    // would still sit under the buttons. `safeDrawing` keeps the room the
+    // system insists on.
+    val density = LocalDensity.current
+    val navBarBottom = with(density) { WindowInsets.safeDrawing.getBottom(density).toDp() }
+    // Everything remembered here belongs to ONE document. The panel is not
+    // re-created when the reader switches to another document — the same
+    // composable is reused with a new `doc` — so every piece of state must
+    // be keyed on the document, or the panel keeps showing the previous
+    // document's outline, its tab and its level.
+    //
+    // The outline is read from the engine, so it is fetched again whenever
+    // the document changes. Keying the effect on `doc.info.generation`
+    // alone was not enough: two documents can carry the same generation
+    // number, and switching between them then left the old outline on
+    // screen.
+    var outline by remember(doc) { mutableStateOf<List<OutlineEntry>?>(null) }
+    LaunchedEffect(doc, doc.info.generation) { outline = vm.outline(doc) }
     val hasOutline = doc.info.hasOutline
-    var tab by remember { mutableStateOf(if (hasOutline) 0 else 1) }
+    // A document with no outline shows the bookmarks tab; one with an
+    // outline shows its contents.
+    var tab by remember(doc) { mutableStateOf(initialPanelTab(hasOutline)) }
     // the outline level shown: the index of its parent entry (-1: the top level)
-    var parent by remember { mutableStateOf(-1) }
-    var renaming by remember { mutableStateOf<Int?>(null) }
+    var parent by remember(doc) { mutableStateOf(-1) }
+    var renaming by remember(doc) { mutableStateOf<Int?>(null) }
 
     Column(modifier.fillMaxSize().background(c.surface)) {
         // The panel's own header: its title, and a way to close it.
@@ -134,7 +162,11 @@ fun BookmarksPanelContent(
                             i++
                         }
                     }
-                    LazyColumn(Modifier.weight(1f)) {
+                    LazyColumn(
+                        Modifier.weight(1f),
+                        // room for the system button row at the bottom
+                        contentPadding = PaddingValues(bottom = navBarBottom),
+                    ) {
                         if (parent >= 0) {
                             item {
                                 Row(
@@ -218,7 +250,11 @@ fun BookmarksPanelContent(
                     )
                 }
             } else {
-                LazyColumn(Modifier.weight(1f)) {
+                LazyColumn(
+                    Modifier.weight(1f),
+                    // room for the system button row at the bottom
+                    contentPadding = PaddingValues(bottom = navBarBottom),
+                ) {
                     items(list.size) { i ->
                         val b = list[i]
                         UserBookmarkRow(
@@ -253,3 +289,12 @@ internal fun parentOf(all: List<OutlineEntry>, i: Int): Int {
     while (k >= 0 && all[k].level >= level) k--
     return k
 }
+
+/**
+ * The tab the bookmarks panel opens on: the document's contents when it has
+ * an outline, its bookmarks when it has none.
+ *
+ * It is a function of the document, and the panel's tab is remembered per
+ * document, so switching documents shows the right tab.
+ */
+internal fun initialPanelTab(hasOutline: Boolean): Int = if (hasOutline) 0 else 1

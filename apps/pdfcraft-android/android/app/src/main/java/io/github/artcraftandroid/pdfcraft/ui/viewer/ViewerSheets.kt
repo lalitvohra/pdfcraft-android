@@ -291,13 +291,18 @@ fun ViewSettingsSheet(vm: AppViewModel, doc: OpenDocument) {
 fun BookmarksSheet(vm: AppViewModel, doc: OpenDocument) {
     val c = pdfColors
     val ctl = doc.controller
-    var outline by remember { mutableStateOf<List<OutlineEntry>?>(null) }
-    LaunchedEffect(doc.info.generation) { outline = vm.outline(doc) }
+    // The state here belongs to ONE document: the sheet is reused with a new
+    // `doc` when the reader switches documents, so it is keyed on the
+    // document or the previous document's outline, tab and level stay on
+    // screen. The outline is read from the engine, so it is fetched again
+    // for the new document.
+    var outline by remember(doc) { mutableStateOf<List<OutlineEntry>?>(null) }
+    LaunchedEffect(doc, doc.info.generation) { outline = vm.outline(doc) }
     val hasOutline = doc.info.hasOutline
-    var tab by remember { mutableStateOf(if (hasOutline) 0 else 1) }
+    var tab by remember(doc) { mutableStateOf(initialPanelTab(hasOutline)) }
     // the outline level shown: the index of its parent entry (-1: the top level)
-    var parent by remember { mutableStateOf(-1) }
-    var renaming by remember { mutableStateOf<Int?>(null) }
+    var parent by remember(doc) { mutableStateOf(-1) }
+    var renaming by remember(doc) { mutableStateOf<Int?>(null) }
     PdfSheet(onDismiss = { ctl.sheet = ViewerSheet.None }, maxHeightFraction = 0.69f, fill = true) {
         SheetBackHeader(stringResource(R.string.sheet_bookmarks_contents), onBack = { ctl.sheet = ViewerSheet.More })
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {

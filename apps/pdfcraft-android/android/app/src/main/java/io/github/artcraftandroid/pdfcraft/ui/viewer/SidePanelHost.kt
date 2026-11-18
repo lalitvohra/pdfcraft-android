@@ -5,8 +5,11 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -43,6 +46,14 @@ fun SidePanelHost(
     val c = pdfColors
     val density = LocalDensity.current
     val screenWidthDp = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
+    // The system button row sits over the bottom of the panel. The panel's
+    // content stops above it, so the last bookmark can be seen and pressed;
+    // padding it as **content padding** inside the list would still let a
+    // row rest under the buttons when the list is scrolled to the end.
+    //
+    // It is `safeDrawing` and not `navigationBars`: the viewer hides the
+    // system bars, so `navigationBars` reports nothing.
+    val bottomInset = with(density) { WindowInsets.safeDrawing.getBottom(density).toDp() }
 
     BoxWithConstraints(modifier.fillMaxHeight().background(c.surface)) {
         // The panel's own width, and the screen's, so a drag can be measured.
@@ -54,7 +65,7 @@ fun SidePanelHost(
         var dragFraction by remember { mutableFloatStateOf(-1f) }
         val fraction = if (dragFraction >= 0f) dragFraction else vm.sidePanelWidthFraction
 
-        Box(Modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxSize().padding(bottom = bottomInset)) {
             BookmarksPanelContent(
                 vm = vm,
                 doc = doc,
